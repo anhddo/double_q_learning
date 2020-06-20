@@ -6,7 +6,12 @@ from tqdm import trange
 from datetime import datetime
 from tqdm import trange
 
-class FourierBasis:
+class FourierBasis(object):
+    """
+    We featurize the given observation using
+    Value Function Approximation in Reinforcement Learning using the Fourier Basis, 
+    George Konidaris, etal
+    """
     def __init__(self, fourier_order, env):
         tf_type = tf.dtypes.double
         if env.spec._env_name == 'CartPole':
@@ -25,7 +30,10 @@ class FourierBasis:
         s = env.reset()
 #         with tf.device("GPU:0"):
         d = (fourier_order + 1) ** len(s)
-        fourier_kernel_mat = tf.reshape(tf.meshgrid(*([np.arange(fourier_order + 1)] * len(s))), shape=[-1, d])
+        fourier_kernel_mat = tf.reshape(
+                tf.meshgrid(*([np.arange(fourier_order + 1)] * len(s))),
+                shape=[-1, d]
+            )
         fourier_kernel_mat = tf.transpose(fourier_kernel_mat)
         fourier_kernel_mat = tf.cast(fourier_kernel_mat, dtype=tf_type)
         self.range_data = min_data - max_data
@@ -40,8 +48,22 @@ class FourierBasis:
         return tf.math.cos(np.pi * tf.linalg.matvec(self.fourier_kernel_mat, s))
 
 class OVI:
+    """
+    A       is the number of action,
+    n       is the size of buffer, where we store all the past data.
+    d       is the dimension of feature
+
+    Size of tensor:
+
+        self.M      A x d x d       Inverse covariance matrix
+        self.X      A x n x d       Current state data
+        self.X1     A x n x d       Next state data
+        self.D      A x n           Terminal flag for an episode
+        self.R      A x n           Reward for an episode
+        self.w      A x d           Model parameter
+
+    """
     def __init__(self, A, n, d, min_clip, max_clip, env, setting):
-#         with tf.device("GPU:0"):
         tf_type = tf.dtypes.double
         self.M = tf.Variable(tf.eye(d, batch_shape=[A], dtype=tf_type) * 10)
         self.X = tf.Variable(tf.zeros((A, n, d), dtype=tf_type))
@@ -49,10 +71,15 @@ class OVI:
         self.R = tf.Variable(tf.zeros((A, n), dtype=tf_type))
         self.D = tf.Variable(tf.zeros((A, n), dtype=tf_type))
         self.w = tf.Variable(tf.zeros((A, d), dtype=tf_type))
+
         self.min_clip = tf.constant(min_clip, dtype=tf_type)
         self.max_clip = tf.constant(max_clip, dtype=tf_type)
+
+        #self.index = [0] * A #tf.Variable(tf.zeros((A), dtype=tf.dtypes.int32))
         self.index = tf.Variable(tf.zeros((A), dtype=tf.dtypes.int32))
+
         self.env = env
+
         self.A = A
         self.n = n
         self.setting = setting
@@ -87,6 +114,7 @@ class OVI:
         self.X1[a, index_, :].assign(s1)
         self.R[a, index_].assign(r)
         self.D[a, index_].assign(done)
+        #self.index[a] = (self.index[a] + 1) % self.n
         self.index[a].assign((self.index[a] + 1) % self.n)
 
     @tf.function
@@ -105,7 +133,6 @@ class OVI:
         X_Ty = tf.linalg.matvec(X_T, y)
         self.w.assign(tf.linalg.matvec(self.M, X_Ty))
 
-# Cell
 def record_video(agent, fourier_basis, env_name):
     env = gym.wrappers.Monitor(gym.make(env_name), './recording/' + env_name, force=True)
     s = env.reset()
