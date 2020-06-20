@@ -2,19 +2,18 @@ from ovi.ovi import OVI, FourierBasis
 from ovi.algo import epsilon_greedy
 import tensorflow as tf
 from tqdm import trange
-import gym
+import pandas as pd
 from datetime import datetime
+from util import allow_gpu_growth
+import gym
 import argparse
 import sys
-import pandas as pd
 import os
 import json
 import glob
+import time
 
-tf.config.experimental_run_functions_eagerly(False)
-gpus = tf.config.experimental.list_physical_devices('GPU')
-for gpu in gpus:
-    tf.config.experimental.set_memory_growth(gpu, True)
+allow_gpu_growth()
 
 def train(setting):
     env = gym.make(setting['env_name'])
@@ -46,10 +45,12 @@ def train(setting):
     agent = OVI(A, setting['buffer_size'], d, min_clip, max_clip, env, setting)
 
     tracking = []
-    agent.take_action = epsilon_greedy(setting['epsilon'],
-                                      env.action_space.sample,
-                                      lambda s: agent._take_action(s).numpy()
-                                     )
+    agent.take_action = epsilon_greedy(
+            setting['epsilon'],
+            env.action_space.sample,
+            lambda s: agent._take_action(s).numpy()
+        )
+
     for t in trange(setting['step']):
         a = agent.take_action(s)
 
@@ -76,7 +77,8 @@ def train(setting):
             s = fourier_basis.transform(tf.constant(s, dtype=tf.dtypes.double))
             ep_reward = 0
 
-    csv_index = 1 + max([int(os.path.basename(file).split('.')[0]) for file in glob.glob(os.path.join(setting['save_dir'],"*.csv"))] + [0])
+    files = glob.glob(os.path.join(setting['save_dir'],"*.csv"))
+    csv_index = 1 + max([int(os.path.basename(file).split('.')[0]) for file in files] + [0])
     csv_path = os.path.join(setting['save_dir'], '{}.csv'.format(csv_index))
     reward, timestep = zip(*tracking)
     df = pd.DataFrame({'t': timestep, 'reward': reward, 'algo': setting['algo']})
