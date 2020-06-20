@@ -1,5 +1,10 @@
+<<<<<<< 621121cca654b68868614fa3de83e23b2540dbf6:main.py
 from ovi.ovi import OVI, FourierBasis
-from ovi.algo import epsilon_greedy
+from ovi.algo import EpsilonGreedy
+=======
+from .ovi import OVI, FourierBasis
+from .algo import EpsilonGreedy
+>>>>>>> add util.py:june60/optimistic_vi/main.py
 import tensorflow as tf
 from tqdm import trange
 import pandas as pd
@@ -35,46 +40,48 @@ def train(setting):
         )
     writer.set_as_default()
 
-    s = env.reset()
+    state = env.reset()
 
     fourier_basis = FourierBasis(setting['fourier_order'], env)
-    s = fourier_basis.transform(tf.constant(s, dtype=tf.dtypes.double))
-    d = len(s)
+    state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
+    d = len(state)
 
     ep_reward = 0
-    agent = OVI(A, setting['buffer_size'], d, min_clip, max_clip, env, setting)
+    agent = OVI(A, setting['buffer'], d, min_clip, max_clip, env, setting)
 
     tracking = []
-    agent.take_action = epsilon_greedy(
-            setting['epsilon'],
+    agent.take_action = EpsilonGreedy(
+            setting['max_epsilon'], 
+            setting['min_epsilon'],
+            setting['step'],
+            setting['fraction'],
             env.action_space.sample,
-            lambda s: agent._take_action(s).numpy()
-        )
+            lambda state: agent._take_action(state).numpy()).action
 
     for t in trange(setting['step']):
-        a = agent.take_action(s)
+        action, _ = agent.take_action(state)
 
-        s1, r, done, _ = env.step(a)
-        ep_reward += r
+        next_state, reward, done, _ = env.step(action)
+        ep_reward += reward
 
-        r = tf.constant(r, dtype=tf.dtypes.double)
+        reward = tf.constant(reward, dtype=tf.dtypes.double)
         done = tf.constant(done, dtype=tf.dtypes.double)
 
-        s1 = fourier_basis.transform(tf.constant(s1, dtype=tf.dtypes.double))
+        next_state = fourier_basis.transform(tf.constant(next_state, dtype=tf.dtypes.double))
 
 
-        agent.update_inverse_covariance(a, s)
-        agent.observe(s, a, r, s1, done)
+        agent.update_inverse_covariance(action, state)
+        agent.observe(state, action, reward, next_state, done)
         if t % setting['sample_len'] == 0:
             agent.train()
 
-        s = s1
+        state = next_state
 
         if done:
             tf.summary.scalar('metrics/reward', data=ep_reward, step=t)
             tracking.append([ep_reward, t])
-            s = env.reset()
-            s = fourier_basis.transform(tf.constant(s, dtype=tf.dtypes.double))
+            state = env.reset()
+            state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
             ep_reward = 0
 
     files = glob.glob(os.path.join(setting['save_dir'],"*.csv"))
@@ -89,13 +96,16 @@ if __name__ == '__main__':
     parser.add_argument("--fourier-order", type=int, default=1)
     parser.add_argument("--env-name", default='CartPole-v0')
     parser.add_argument("--algo", default='vi')
-    parser.add_argument("--buffer-size", type=int, default=5000)
+    parser.add_argument("--buffer", type=int, default=5000)
     parser.add_argument("--save-dir")
     parser.add_argument("--n-run", type=int, default=10)
     parser.add_argument("--step", type=int, default=10000)
     parser.add_argument("--sample-len", type=int, default=1)
     parser.add_argument("--beta", type=float, default=0)
     parser.add_argument("--epsilon", type=float, default=0)
+    parser.add_argument("--max-epsilon", type=float, default=0.8)
+    parser.add_argument("--min-epsilon", type=float, default=0.05)
+    parser.add_argument("--fraction", type=float, default=0.3)
 
     args = parser.parse_args()
 #     args = parser.parse_args('--fourier-order 2 --env-name Acrobot-v1 --save-dir tmp/bot --buffer-size 2000 --step 20000 --beta 1  --n-run 5'.split())
@@ -108,3 +118,8 @@ if __name__ == '__main__':
 
     for _ in range(setting['n_run']):
         train(setting)
+<<<<<<< 621121cca654b68868614fa3de83e23b2540dbf6:main.py
+        time.sleep(1000)
+=======
+        #time.sleep(1000)
+>>>>>>> add util.py:june60/optimistic_vi/main.py

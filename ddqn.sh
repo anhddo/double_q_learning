@@ -1,0 +1,1 @@
+python -m june60.deep_rl.ddqn --save-dir tmp/test --buffer 30000 --step 100000 --batch 4096 --start 500 --fraction 0.3 --max-epsilon 0.9 --min-epsilon 0.1 --train-step 2 --update 500 --env CartPole-v1
