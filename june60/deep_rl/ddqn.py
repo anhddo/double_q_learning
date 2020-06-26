@@ -21,13 +21,13 @@ allow_gpu_growth()
 Sample = namedtuple('Sample', ('state', 'action', 'reward', 'next_state', 'done'))
 #tf.config.experimental_run_functions_eagerly(True)
 
-tf.keras.backend.set_floatx('float64')
-TF_TYPE = tf.float64
+#tf.keras.backend.set_floatx('float64')
+#TF_TYPE = tf.float64
 
 #tf.keras.backend.set_floatx('float32')
-#TF_TYPE = tf.float32
+TF_TYPE = tf.float32
 
-class ReplayBuffer(object):
+class RingBuffer(object):
     def __init__(self, N):
         self.buffer = deque(maxlen=N)
 
@@ -39,8 +39,6 @@ class ReplayBuffer(object):
         select_index = npr.choice(len(self.buffer), batch_size)
         batch = [self.buffer[i] for i in select_index]
         return batch
-        #batch = map(tf.stack, zip(*batch))
-        #return Sample(*batch)
 
 class MLP(Model):
     def __init__(self, input_dim, out_dim):
@@ -60,13 +58,21 @@ class DDQN(object):
         obs_dim, action_dim = kargs['obs_dim'], kargs['action_dim']
         self.discount = kargs['discount']
         self.batch_size = kargs['batch_size']
+        self.use_huber = kargs['huber']
+        self.use_mse = kargs['mse']
+        self.use_pol = kargs['pol']
+        self.use_vi = kargs['vi']
+        self.use_rms = kargs['rms']
+        self.use_adam = kargs['adam']
+
         self.policy_net = MLP(obs_dim, action_dim)
         self.target_net = MLP(obs_dim, action_dim)
         self.policy_net.trainable = True
         self.target_net.trainable = False
-        #self.optimizer = optimizers.Adam()
+        self.optimizer = optimizers.Adam()
         self.optimizer = optimizers.RMSprop(learning_rate=0.000625)
         #self.loss_func = losses.Huber(tf.constant(1.0, dtype=TF_TYPE))
+        self.loss_func = losses.Huber()
         self.loss_func = losses.MeanSquaredError()
         self.policy_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
         self.target_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
@@ -87,12 +93,22 @@ class DDQN(object):
         with tf.GradientTape() as tape:
             Q = self.policy_net(state)
             Q = tf.gather(Q, action, batch_dims=1)
-            action_next = self._take_action(next_state)
-            Q_target = self.target_net(next_state)
-            V_target = tf.gather(Q_target, tf.reshape(action_next, shape=(-1, 1)), batch_dims=1)
+            ##
+            if self.use_vi:
+                next_policy_net = self.policy_net
+                Q_next_net = self.target_net
+            else self.use_pol:
+                next_policy_net = self.target_net
+                Q_next_net = self.policy_net
+            Q_policy_next = next_policy_net(next_state)
+            next_state = tf.argmax(Q_policy_next, axis=1)
+            Q_next = Q_next_net(next_state)
+            V_next = tf.gather(Q_next, tf.reshape(action_next, shape=(-1, 1)), batch_dims=1)
+            ##
             Q_target = reward + self.discount * tf.multiply(V_target, (1. - done))
             loss = self.loss_func(Q, Q_target)
         grad = tape.gradient(loss, self.policy_net.trainable_variables)
+        grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
         self.optimizer.apply_gradients(zip(grad, self.policy_net.trainable_variables))
         loss_info = {'loss': loss, 'Q': tf.reduce_max(Q), 'Q_target': tf.reduce_max(Q_target)}
         return loss_info
@@ -101,7 +117,7 @@ class DDQN(object):
 def train(setting):
     env = gym.make(setting['env'])
 
-    A = env.action_space.n
+    action_dim = env.action_space.n
 
     writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
             .format(os.path.expanduser('~'),
@@ -116,14 +132,16 @@ def train(setting):
     state = tf.constant(state, TF_TYPE)
 
 
-    replay_buffer = ReplayBuffer(setting['buffer'])
+    replay_buffer = RingBuffer(setting['buffer'])
+    setting['obs_dim'] = obs_dim
+    setting['action_dim'] = action_dim
     obs_dim = len(state)
     agent = DDQN(
             obs_dim=obs_dim, 
-            action_dim=A,
+            action_dim=action_dim,
             discount=setting['discount'],
             batch_size=setting['batch'], 
-            replay_buffer=replay_buffer)
+            )
 
     agent.take_action = EpsilonGreedy(
             setting['max_epsilon'],
@@ -184,6 +202,8 @@ if __name__ == '__main__':
     parser.add_argument("--env", default='CartPole-v0')
     parser.add_argument("--buffer", type=int, default=10000)
     parser.add_argument("--batch", type=int, default=32)
+    parser.add_argument("--vi", action='store_true')
+    parser.add_argument("--pol", action='store_true')
     parser.add_argument("--save-dir")
     parser.add_argument("--n-run", type=int, default=10)
     parser.add_argument("--step", type=int, default=10000)
@@ -194,6 +214,7 @@ if __name__ == '__main__':
     parser.add_argument("--discount", type=float, default=0.99)
     parser.add_argument("--train-step", type=int, default=5)
     parser.add_argument("--start", type=int, default=1000)
+    parser.add_argument("--name")
 
     args = parser.parse_args()
     setting = vars(args)
