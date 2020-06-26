@@ -1,0 +1,1 @@
+python -m june60.deep_rl.ddqn --save-dir tmp/car-1 --buffer 50000 --step 200000 --start 1000 --fraction 0.5 --max-epsilon 0.8 --min-epsilon 0.05 --train-step 2 --update 500 --env MountainCar-v0 --batch 32
