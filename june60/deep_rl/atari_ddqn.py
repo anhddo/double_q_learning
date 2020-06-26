@@ -27,7 +27,7 @@ Sample = namedtuple('Sample', ('state', 'action', 'reward', 'next_state', 'done'
 #tf.keras.backend.set_floatx('float32')
 TF_TYPE = tf.float32
 
-class RingBuffer(object):
+class ReplayBuffer(object):
     def __init__(self, N):
         self.buffer = deque(maxlen=N)
 
@@ -40,7 +40,7 @@ class RingBuffer(object):
         batch = [self.buffer[i] for i in select_index]
         return batch
 
-class MLP(Model):
+class CNN(Model):
     def __init__(self, input_dim, out_dim):
         super(MLP, self).__init__()
         self.fn1 = Dense(32, activation='relu')
@@ -54,93 +54,60 @@ class MLP(Model):
         return self.head(x)
 
 class DDQN(object):
-    def __init__(self, kargs):
+    def __init__(self, **kargs):
         obs_dim, action_dim = kargs['obs_dim'], kargs['action_dim']
         self.discount = kargs['discount']
-        self.batch_size = kargs['batch']
-
-        self.use_huber = kargs['huber']
-        self.use_mse = kargs['mse']
-
-
-        self.use_rms = kargs['rms']
-        self.use_adam = kargs['adam']
-
-        self.train_net = MLP(obs_dim, action_dim)
-        self.fixed_net = MLP(obs_dim, action_dim)
-        self.train_net.trainable = True
-        self.fixed_net.trainable = False
-
-        if kargs['dqn']:
-            self.next_policy_net = self.fixed_net
-            self.Q_next_net = self.fixed_net
-        elif kargs['ddqn']:
-            if kargs['pol']:
-                self.next_policy_net = self.fixed_net
-                self.Q_next_net = self.train_net
-            elif kargs['vi']:
-                self.next_policy_net = self.train_net
-                self.Q_next_net = self.fixed_net
-
-
-        if kargs['rms']:
-            self.optimizer = optimizers.RMSprop(learning_rate=kargs['lr'])
-        elif kargs['adam']:
-            self.optimizer = optimizers.Adam(learning_rate=kargs['lr'])
-        elif kargs['sgd']:
-            self.optimizer = optimizers.SGD(learning_rate=kargs['lr'])
-
+        self.batch_size = kargs['batch_size']
+        self.policy_net = MLP(obs_dim, action_dim)
+        self.target_net = MLP(obs_dim, action_dim)
+        self.policy_net.trainable = True
+        self.target_net.trainable = False
+        #self.optimizer = optimizers.Adam()
+        self.optimizer = optimizers.RMSprop(learning_rate=0.000625)
         #self.loss_func = losses.Huber(tf.constant(1.0, dtype=TF_TYPE))
-        if kargs['huber']:
-            self.loss_func = losses.Huber()
-        elif kargs['mse']:
-            self.loss_func = losses.MeanSquaredError()
-
-        self.train_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
-        self.fixed_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
+        self.loss_func = losses.Huber()
+        #self.loss_func = losses.MeanSquaredError()
+        self.policy_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
+        self.target_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
         self.update()
 
-        self.policy_net = self.train_net
-        if kargs['fixed_policy']:
-            self.policy_net = self.fixed_net
-
     def update(self):
-        self.fixed_net.set_weights(self.train_net.get_weights())
+        self.target_net.set_weights(self.policy_net.get_weights())
 
     @tf.function
     def _take_action(self, state):
         Q = self.policy_net(state)
-        A = tf.argmax(Q, axis=1)
+        A = tf.argmax(Q, axis=1, output_type=tf.int64)
         return A
 
-    def train(self, batch):
-        state, action, reward, next_state, done = zip(*batch)
-        state, action, reward, next_state, done =\
-                (tf.stack(e) for e in (state, action, reward, next_state, done))
-        return self.train_(state, action, reward, next_state, done)
-
     @tf.function
-    def train_(self, state, action, reward, next_state, done):
-        #tf.print(state.shape, action.shape, reward.shape, next_state.shape, done.shape)
+    #def train(self, batch):
+    def train(self, state, action, reward, next_state, done):
         with tf.GradientTape() as tape:
-            Q = self.train_net(state)
+            Q = self.policy_net(state)
             Q = tf.gather(Q, action, batch_dims=1)
-            Q_policy_next = self.next_policy_net(next_state)
-            next_action = tf.argmax(Q_policy_next, axis=1)
-            Q_next = self.Q_next_net(next_state)
-            V_next = tf.gather(Q_next, tf.reshape(next_action, shape=(-1, 1)), batch_dims=1)
-            #V_next = tf.clip_by_value(V_next, 0., 500.)
+
+            #action_next = self._take_action(next_state)
             ##
-            Q_target = reward + self.discount * tf.multiply(V_next, (1. - done))
+            Q1 = self.target_net(state)
+            action_next = tf.argmax(Q1, axis=1)#, output_type=tf.int64)
+            ##
+
+            Q_target = self.target_net(next_state)
+            V_target = tf.gather(Q_target, tf.reshape(action_next, shape=(-1, 1)), batch_dims=1)
+            Q_target = reward + self.discount * tf.multiply(V_target, (1. - done))
             loss = self.loss_func(Q, Q_target)
-        grad = tape.gradient(loss, self.train_net.trainable_variables)
+        grad = tape.gradient(loss, self.policy_net.trainable_variables)
         grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
-        self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
+        self.optimizer.apply_gradients(zip(grad, self.policy_net.trainable_variables))
         loss_info = {'loss': loss, 'Q': tf.reduce_max(Q), 'Q_target': tf.reduce_max(Q_target)}
         return loss_info
 
 
 def train(setting):
+    env = gym.make(setting['env'])
+
+    A = env.action_space.n
 
     writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
             .format(os.path.expanduser('~'),
@@ -151,19 +118,18 @@ def train(setting):
 
     writer.set_as_default()
 
-    env = gym.make(setting['env'])
-
     state = env.reset()
     state = tf.constant(state, TF_TYPE)
 
 
-    replay_buffer = RingBuffer(setting['buffer'])
+    replay_buffer = ReplayBuffer(setting['buffer'])
     obs_dim = len(state)
-    action_dim = env.action_space.n
-
-    setting['obs_dim'] = obs_dim
-    setting['action_dim'] = action_dim
-    agent = DDQN(setting)
+    agent = DDQN(
+            obs_dim=obs_dim, 
+            action_dim=A,
+            discount=setting['discount'],
+            batch_size=setting['batch'], 
+            replay_buffer=replay_buffer)
 
     agent.take_action = EpsilonGreedy(
             setting['max_epsilon'],
@@ -189,12 +155,13 @@ def train(setting):
 
         state = next_state
         if step > setting['start']:
-            train_info = None
+
             if step % setting['train_step'] == 0:
                 batch = replay_buffer.get_batch(setting['batch'])
-                train_info = agent.train(batch)
+                state_, action_, reward_, next_state_, done_ = (tf.stack(e) for e in zip(*batch))
+                train_info = agent.train(state_, action_, reward_, next_state_, done_ )
 
-            if terminal and setting['debug']:
+            if terminal:
                 tf.summary.scalar('metrics/epsilon', data=action_info['epsilon'], step=step)
                 if train_info:
                     tf.summary.scalar('metrics/loss', data=train_info['loss'], step=step)
@@ -219,40 +186,20 @@ def train(setting):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finite-horizon MDP")
-    parser.add_argument("--save-dir")
+    parser.add_argument("--fourier-order", type=int, default=1)
     parser.add_argument("--env", default='CartPole-v0')
-
-    parser.add_argument("--step", type=int, default=10000)
-    parser.add_argument("--update", type=int, default=100)
     parser.add_argument("--buffer", type=int, default=10000)
     parser.add_argument("--batch", type=int, default=32)
+    parser.add_argument("--save-dir")
     parser.add_argument("--n-run", type=int, default=10)
-    parser.add_argument("--discount", type=float, default=0.99)
-    parser.add_argument("--train-step", type=int, default=1)
-    parser.add_argument("--start", type=int, default=1000)
-
-    parser.add_argument("--fixed-policy", action='store_true')
-
-    parser.add_argument("--vi", action='store_true')
-    parser.add_argument("--pol", action='store_true')
-
-    parser.add_argument("--huber", action='store_true')
-    parser.add_argument("--mse", action='store_true')
-
-    parser.add_argument("--lr", type=float, default=0.0001)
-    parser.add_argument("--rms", action='store_true')
-    parser.add_argument("--adam", action='store_true')
-    parser.add_argument("--sgd", action='store_true')
-
+    parser.add_argument("--step", type=int, default=10000)
+    parser.add_argument("--update", type=int, default=100)
     parser.add_argument("--max-epsilon", type=float, default=0.8)
     parser.add_argument("--min-epsilon", type=float, default=0.05)
     parser.add_argument("--fraction", type=float, default=0.3)
-
-    parser.add_argument("--dqn", action='store_true')
-    parser.add_argument("--ddqn", action='store_true')
-
-    parser.add_argument("--debug", action='store_true')
-    parser.add_argument("--name")
+    parser.add_argument("--discount", type=float, default=0.99)
+    parser.add_argument("--train-step", type=int, default=5)
+    parser.add_argument("--start", type=int, default=1000)
 
     args = parser.parse_args()
     setting = vars(args)
