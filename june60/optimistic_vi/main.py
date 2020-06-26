@@ -1,10 +1,5 @@
-<<<<<<< 621121cca654b68868614fa3de83e23b2540dbf6:main.py
-from ovi.ovi import OVI, FourierBasis
-from ovi.algo import EpsilonGreedy
-=======
 from .ovi import OVI, FourierBasis
 from .algo import EpsilonGreedy
->>>>>>> add util.py:june60/optimistic_vi/main.py
 import tensorflow as tf
 from tqdm import trange
 import pandas as pd
@@ -118,8 +113,4 @@ if __name__ == '__main__':
 
     for _ in range(setting['n_run']):
         train(setting)
-<<<<<<< 621121cca654b68868614fa3de83e23b2540dbf6:main.py
-        time.sleep(1000)
-=======
         #time.sleep(1000)
->>>>>>> add util.py:june60/optimistic_vi/main.py
