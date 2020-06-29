@@ -5,8 +5,9 @@ from ..algo import EpsilonGreedy
 from tqdm import trange
 import pandas as pd
 from datetime import datetime
-from ..util import allow_gpu_growth
+from ..util import allow_gpu_growth, Logs
 from collections import namedtuple, deque
+from os.path import join, isdir
 import numpy.random as npr
 import gym
 import argparse
@@ -53,6 +54,7 @@ class MLP(Model):
         x = self.fn2(x)
         return self.head(x)
 
+
 class DDQN(object):
     def __init__(self, kargs):
         obs_dim, action_dim = kargs['obs_dim'], kargs['action_dim']
@@ -65,6 +67,9 @@ class DDQN(object):
 
         self.use_rms = kargs['rms']
         self.use_adam = kargs['adam']
+
+        self.tau = kargs['tau']
+        self.tboard = kargs['tboard']
 
         self.train_net = MLP(obs_dim, action_dim)
         self.fixed_net = MLP(obs_dim, action_dim)
@@ -88,7 +93,7 @@ class DDQN(object):
         elif kargs['adam']:
             self.optimizer = optimizers.Adam(learning_rate=kargs['lr'])
         elif kargs['sgd']:
-            self.optimizer = optimizers.SGD(learning_rate=kargs['lr'])
+            self.optimizer = optimizers.SGD(learning_rate=kargs['lr'], momentum=0.9)
 
         #self.loss_func = losses.Huber(tf.constant(1.0, dtype=TF_TYPE))
         if kargs['huber']:
@@ -98,14 +103,23 @@ class DDQN(object):
 
         self.train_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
         self.fixed_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
-        self.update()
+        self.hard_update()
 
         self.policy_net = self.train_net
         if kargs['fixed_policy']:
             self.policy_net = self.fixed_net
 
-    def update(self):
+
+    def hard_update(self):
         self.fixed_net.set_weights(self.train_net.get_weights())
+
+    def soft_update(self):
+        weights = [fixed_weight * (1. - self.tau) + train_weight * self.tau \
+                for train_weight, fixed_weight \
+                in zip(
+                 self.train_net.get_weights(),
+                 self.fixed_net.get_weights())]
+        self.fixed_net.set_weights(weights)
 
     @tf.function
     def _take_action(self, state):
@@ -129,19 +143,19 @@ class DDQN(object):
             next_action = tf.argmax(Q_policy_next, axis=1)
             Q_next = self.Q_next_net(next_state)
             V_next = tf.gather(Q_next, tf.reshape(next_action, shape=(-1, 1)), batch_dims=1)
-            #V_next = tf.clip_by_value(V_next, 0., 500.)
-            ##
             Q_target = reward + self.discount * tf.multiply(V_next, (1. - done))
             loss = self.loss_func(Q, Q_target)
         grad = tape.gradient(loss, self.train_net.trainable_variables)
         grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
         self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
-        loss_info = {'loss': loss, 'Q': tf.reduce_max(Q), 'Q_target': tf.reduce_max(Q_target)}
-        return loss_info
+        return {
+                'loss': loss,
+                'Q': tf.reduce_max(Q),
+                'Q_target': tf.reduce_max(Q_target)
+                }
 
 
 def train(setting):
-
     writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
             .format(os.path.expanduser('~'),
                 setting['env'],
@@ -150,6 +164,7 @@ def train(setting):
         )
 
     writer.set_as_default()
+    logs = Logs(setting['save_dir'])
 
     env = gym.make(setting['env'])
 
@@ -175,7 +190,9 @@ def train(setting):
 
     ep_reward = 0
     tracking = []
+    episode = 0
 
+    train_info = None
     for step in trange(setting['step']):
         action, action_info = agent.take_action(tf.reshape(state, shape=[-1, obs_dim]))
         next_state, reward, done, _ = env.step(tf.squeeze(action).numpy())
@@ -189,36 +206,42 @@ def train(setting):
 
         state = next_state
         if step > setting['start']:
-            train_info = None
             if step % setting['train_step'] == 0:
                 batch = replay_buffer.get_batch(setting['batch'])
                 train_info = agent.train(batch)
 
-            if terminal and setting['debug']:
+            if setting['soft_update']:
+                agent.soft_update()
+            else:
+                if step % setting['update'] == 0:
+                    agent.hard_update()
+
+        ##-----------------------  TERMINAL SECTION ----------------------------##
+        if terminal:
+            if setting['tboard']:
                 tf.summary.scalar('metrics/epsilon', data=action_info['epsilon'], step=step)
-                if train_info:
+                tf.summary.scalar('metrics/episode', data=episode, step=step)
+                tf.summary.scalar('metrics/reward', data=ep_reward, step=step)
+            if train_info:
+                if setting['tboard']:
                     tf.summary.scalar('metrics/loss', data=train_info['loss'], step=step)
                     tf.summary.scalar('metrics/Q', data=train_info['Q'], step=step)
-                tf.summary.scalar('metrics/reward', data=ep_reward, step=step)
+                logs.loss.append((step, float(train_info['loss'].numpy())))
+                logs.Q.append((step, float(train_info['Q'].numpy())))
+            logs.reward.append((step, ep_reward))
 
-            if step % setting['update'] == 0:
-                agent.update()
-
-        if terminal:
-            tracking.append([ep_reward, step])
             state = env.reset()
             state = tf.constant(state, TF_TYPE)
+            episode += 1
             ep_reward = 0
 
-    files = glob.glob(os.path.join(setting['save_dir'],"*.csv"))
-    csv_index = 1 + max([int(os.path.basename(file).split('.')[0]) for file in files] + [0])
-    csv_path = os.path.join(setting['save_dir'], '{}.csv'.format(csv_index))
-    reward, timestep = zip(*tracking)
-    df = pd.DataFrame({'t': timestep, 'reward': reward})
-    df.to_csv(csv_path)
+    logs.save()
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finite-horizon MDP")
+    parser.add_argument("--tmp-dir")
     parser.add_argument("--save-dir")
     parser.add_argument("--env", default='CartPole-v0')
 
@@ -232,6 +255,9 @@ if __name__ == '__main__':
     parser.add_argument("--start", type=int, default=1000)
 
     parser.add_argument("--fixed-policy", action='store_true')
+
+    parser.add_argument("--soft-update", action='store_true')
+    parser.add_argument("--tau", type=float, default=0.001)
 
     parser.add_argument("--vi", action='store_true')
     parser.add_argument("--pol", action='store_true')
@@ -251,13 +277,22 @@ if __name__ == '__main__':
     parser.add_argument("--dqn", action='store_true')
     parser.add_argument("--ddqn", action='store_true')
 
-    parser.add_argument("--debug", action='store_true')
+    parser.add_argument("--tboard", action='store_true')
     parser.add_argument("--name")
 
     args = parser.parse_args()
     setting = vars(args)
 
-    os.makedirs(setting['save_dir'], exist_ok=True)
+    ##-----------------------CREATE NEW FOLDER FOR ENVIRONMENT -------------##
+    if setting['tmp_dir']:
+        dir_path = join(setting["tmp_dir"], setting["env"])
+        os.makedirs(dir_path, exist_ok=True)
+        index = 1 + max([0,] \
+                + [int(d) for d in os.listdir(dir_path) \
+                if isdir(join(dir_path, d)) and d.isnumeric()])
+        setting['save_dir'] = join(dir_path, str(index))
+        os.makedirs(setting['save_dir'], exist_ok=True)
+    ##______________________________________________________________________##
     with open(os.path.join(setting['save_dir'], 'setting.json'), 'w') as f:
         f.write(json.dumps(setting))
 
