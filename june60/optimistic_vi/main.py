@@ -1,10 +1,10 @@
 from .ovi import OVI, FourierBasis
-from .algo import EpsilonGreedy
+from ..algo import EpsilonGreedy
 import tensorflow as tf
 from tqdm import trange
 import pandas as pd
 from datetime import datetime
-from util import allow_gpu_growth
+from ..util import allow_gpu_growth
 import gym
 import argparse
 import sys
@@ -27,13 +27,14 @@ def train(setting):
 
     A = env.action_space.n
 
-    writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
-            .format(os.path.expanduser('~'),
-                setting['env_name'],
-                str(datetime.now())
+    if setting['debug']:
+        writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
+                .format(os.path.expanduser('~'),
+                    setting['env_name'],
+                    str(datetime.now())
+                )
             )
-        )
-    writer.set_as_default()
+        writer.set_as_default()
 
     state = env.reset()
 
@@ -73,7 +74,8 @@ def train(setting):
         state = next_state
 
         if done:
-            tf.summary.scalar('metrics/reward', data=ep_reward, step=t)
+            if setting['debug']:
+                tf.summary.scalar('metrics/reward', data=ep_reward, step=t)
             tracking.append([ep_reward, t])
             state = env.reset()
             state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
@@ -101,6 +103,8 @@ if __name__ == '__main__':
     parser.add_argument("--max-epsilon", type=float, default=0.8)
     parser.add_argument("--min-epsilon", type=float, default=0.05)
     parser.add_argument("--fraction", type=float, default=0.3)
+    parser.add_argument("--debug", action='store_true')
+    parser.add_argument("--pause", action='store_true')
 
     args = parser.parse_args()
 #     args = parser.parse_args('--fourier-order 2 --env-name Acrobot-v1 --save-dir tmp/bot --buffer-size 2000 --step 20000 --beta 1  --n-run 5'.split())
@@ -113,4 +117,5 @@ if __name__ == '__main__':
 
     for _ in range(setting['n_run']):
         train(setting)
-        #time.sleep(1000)
+        if setting['pause']:
+            time.sleep(1000)
