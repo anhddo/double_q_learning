@@ -7,22 +7,29 @@ import glob
 import json
 from os import path
 import argparse
+import os
+from .util import Logs
+from tqdm import tqdm
+
 
 def get_reward(args):
     dir_path = args['save_dir']
     with open(path.join(dir_path, 'setting.json')) as f:
         setting = (json.loads(f.read()))
         x = range(setting['step'])
-        time_step, reward = [], []
-        files = glob.glob(path.join(dir_path, "*.csv"))
-        dir_path = setting['save_dir']
-        for file in files:
-            df = pd.read_csv(file)
-            time_step.append(list(x))
-            reward.append(np.interp(x, df.t, df.reward))
+        reward, loss = [], []
+        files = [e for e in os.listdir(dir_path) if e.split(".")[0].isnumeric()]
+        files = [path.join(dir_path, e) for e in files]
+        for file_name in tqdm(files):
+            logs = Logs(file_name)
+            logs.load()
+            timestep, y = zip(*logs.reward)
+            reward.append(np.interp(x, timestep, y))
+            timestep, y = zip(*logs.reward)
+            loss.append(np.interp(x, timestep, y))
 
-        time_step, reward = np.stack(time_step), np.stack(reward)
-        return {'reward': reward, 'setting': setting}
+        reward, loss = np.stack(reward), np.stack(loss)
+        return {'reward': reward, 'loss': loss, 'setting': setting}
 
 def avg_plot(args):
     reward_info = get_reward(args)
@@ -52,6 +59,8 @@ if __name__ == '__main__':
     parser.add_argument("--plot-name")
     parser.add_argument("--line", action='store_true')
     parser.add_argument("--avg", action='store_true')
+    #parser.add_argument("--loss", action='store_true')
+    #parser.add_argument("--reward", action='store_true')
     parser.add_argument("--width", type=float, default=10)
     parser.add_argument("--height", type=float, default=5)
     args = parser.parse_args()
