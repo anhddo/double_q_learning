@@ -293,6 +293,7 @@ if __name__ == '__main__':
         setting['save_dir'] = join(dir_path, str(index))
         os.makedirs(setting['save_dir'], exist_ok=True)
     ##______________________________________________________________________##
+    print(setting['save_dir'])
     with open(os.path.join(setting['save_dir'], 'setting.json'), 'w') as f:
         f.write(json.dumps(setting))
 
