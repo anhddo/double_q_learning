@@ -226,8 +226,8 @@ def train(setting):
                 if setting['tboard']:
                     tf.summary.scalar('metrics/loss', data=train_info['loss'], step=step)
                     tf.summary.scalar('metrics/Q', data=train_info['Q'], step=step)
-                logs.loss.append((step, float(train_info['loss'].numpy())))
-                logs.Q.append((step, float(train_info['Q'].numpy())))
+                logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
+                logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
             logs.reward.append((step, ep_reward))
 
             state = env.reset()
