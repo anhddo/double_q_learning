@@ -41,8 +41,6 @@ class RingBuffer(object):
         batch = [self.buffer[i] for i in select_index]
         return batch
 
-    # TODO: replay buffer for skip ram
-
 
 class CNN(Model):
     def __init__(self, n_action):
@@ -163,6 +161,9 @@ class DDQN(object):
                 'Q_target': tf.reduce_max(Q_target)
                 }
 
+def preprocess(img):
+    pass
+    # TODO: implement preprocess image
 
 def train(setting):
     writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
@@ -176,6 +177,19 @@ def train(setting):
     logs = Logs(setting['save_dir'])
 
     env = gym.make(setting['env'])
+    ##----------------------- ----------------------------------------------##
+    env = gym.make("BreakoutDeterministic-v4")
+    ##
+    env.reset().shape
+    import pdb; pdb.set_trace();
+    ##----------------------- ----------------------------------------------##
+    ##______________________________________________________________________##
+
+    [e.id for e in (gym.envs.registry.all()) if "pong" in e.id.lower()]
+    
+    ##______________________________________________________________________##
+
+    import pdb; pdb.set_trace();
 
     state = env.reset()
     state = tf.constant(state, TF_TYPE)
