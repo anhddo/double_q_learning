@@ -9,7 +9,7 @@ class EpsilonGreedy(object):
         self.epsilon = max_epsilon
 
     def action(self, state, step):
-        self.epsilon = max(self.max_epsilon * self.epsilon_decay, self.min_epsilon)
+        self.epsilon = max(self.max_epsilon * self.epsilon_decay ** step, self.min_epsilon)
         if self.epsilon > npr.uniform():
             action = self.random_func()
         else:
