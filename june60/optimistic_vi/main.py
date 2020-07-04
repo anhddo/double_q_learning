@@ -55,7 +55,7 @@ def train(setting):
             lambda state: agent._take_action(state).numpy()).action
 
     for t in trange(setting['step']):
-        action, _ = agent.take_action(state)
+        action, _ = agent.take_action(state, t)
 
         next_state, reward, done, _ = env.step(action)
         ep_reward += reward
