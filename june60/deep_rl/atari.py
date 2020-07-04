@@ -22,11 +22,11 @@ allow_gpu_growth()
 Sample = namedtuple('Sample', ('state', 'action', 'reward', 'next_state', 'done'))
 #tf.config.experimental_run_functions_eagerly(True)
 
-tf.keras.backend.set_floatx('float64')
-TF_TYPE = tf.float64
+#tf.keras.backend.set_floatx('float64')
+#TF_TYPE = tf.float64
 
 #tf.keras.backend.set_floatx('float32')
-#TF_TYPE = tf.float32
+TF_TYPE = tf.float32
 
 class RingBuffer1(object):
     def __init__(self, N):
@@ -89,15 +89,13 @@ class CNN(Model):
 
     @tf.function
     def call(self, x):
-        x = tf.cast(x, TF_TYPE)
-        x /= 255.
+        x = tf.cast(x, TF_TYPE) / 255.
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.flatten(x)
         x = self.dense1(x)
-        x = self.dense2(x)
-        return x
+        return self.dense2(x)
 
 
 class DDQN(object):
@@ -134,7 +132,7 @@ class DDQN(object):
 
 
         if kargs['rms']:
-            self.optimizer = optimizers.RMSprop(learning_rate=kargs['lr'])
+            self.optimizer = optimizers.RMSprop(learning_rate=kargs['lr'], rho=0.95, epsilon=0.01)
         elif kargs['adam']:
             self.optimizer = optimizers.Adam(learning_rate=kargs['lr'])
         elif kargs['sgd']:
@@ -174,6 +172,8 @@ class DDQN(object):
 
     def train(self, batch):
         state, action, reward, next_state, done = zip(*batch)
+        state = [np.stack(e, axis=2) for e in state]
+        next_state = [np.stack(e, axis=2) for e in next_state]
         state, action, reward, next_state, done =\
                 (np.stack(e) for e in (state, action, reward, next_state, done))
         return self.train_(state, action, reward, next_state, done)
@@ -185,11 +185,14 @@ class DDQN(object):
         with tf.GradientTape() as tape:
             Q = self.train_net(state)
             Q = tf.gather(Q, action, batch_dims=1)
+
             Q_policy_next = self.next_policy_net(next_state)
             next_action = tf.argmax(Q_policy_next, axis=1)
+
             Q_next = self.Q_next_net(next_state)
             V_next = tf.gather(Q_next, tf.reshape(next_action, shape=(-1, 1)), batch_dims=1)
             Q_target = reward + self.discount * tf.multiply(V_next, (1. - done))
+
             loss = self.loss_func(Q, Q_target)
         grad = tape.gradient(loss, self.train_net.trainable_variables)
         grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
@@ -200,28 +203,54 @@ class DDQN(object):
                 'Q_target': tf.reduce_max(Q_target)
                 }
 
+#i=1
+#class Preprocess(object):
+#    def atari(self, img):
+#        global i
+#        im = Image.fromarray(img)\
+#                .convert("L")
+#        i+=1
+#        im.save('image/{}.png'.format(i))
+#        im = im\
+#                .resize((84, 110), Image.NEAREST)\
+#                .crop((0, 18, 84, 102))
+#        im.save('image/im_crop{}.png'.format(i))
+#        return np.asarray(im)
+#
+#class Preprocess(object):
+#    def atari(self, img):
+#        im = Image.fromarray(img)\
+#                .convert("L")\
+#                .resize((84, 110), Image.NEAREST)\
+#                .crop((0, 18, 84, 102))
+#        return np.asarray(im)
 class Preprocess(object):
     def atari(self, img):
         im = Image.fromarray(img)\
                 .convert("L")\
-                .resize((84, 110), Image.NEAREST)\
-                .crop((0, 13, 84, 97))
+                .resize((84, 84), Image.NEAREST)
+                #.crop((0, 18, 84, 102))
         return np.asarray(im)
 
-def train(setting):
-    writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
-            .format(os.path.expanduser('~'),
-                setting['env'],
-                str(datetime.now())
-            )
-        )
 
-    writer.set_as_default()
+def train(setting):
+    if setting['tboard']:
+        writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
+                .format(os.path.expanduser('~'),
+                    setting['env'],
+                    str(datetime.now())
+                )
+            )
+
+        writer.set_as_default()
     logs = Logs(setting['save_dir'])
 
     preprocess = Preprocess()
     env = gym.make(setting['env'])
+    ##----------------------- ----------------------------------------------##
     #[e.id for e in (gym.envs.registry.all()) if "pong" in e.id.lower()]
+    ##______________________________________________________________________##
+
     replay_buffer = RingBuffer(setting['buffer'])
     action_dim = env.action_space.n
 
@@ -245,15 +274,21 @@ def train(setting):
 
     state = env.reset()
     state = preprocess.atari(state)
-    state = np.stack([state] * 4, axis=2)
+    #state = np.stack([state] * 4, axis=2)
+    state = [state] * 4
 
     for step in trange(setting['step']):
-        action, action_info = agent.take_action(state[np.newaxis, :], step)
+        state_ = np.stack(state, axis=2)
+        action, action_info = agent.take_action(state_[np.newaxis, :], step)
         next_state, reward, terminal, _ = env.step(tf.squeeze(action).numpy())
-
+        reward = np.clip(reward, -1, 1)
         ep_reward += reward
         next_state = preprocess.atari(next_state)
-        next_state = np.append(state[:, :, 1:], next_state[:, :, np.newaxis], axis=2)
+        #next_state = np.append(state[:, :, 1:], next_state[:, :, np.newaxis], axis=2)
+        next_state = state[1:] + [next_state]
+        ##----------------------- ----------------------------------------------##
+        ##______________________________________________________________________##
+        #next_state = np.append(state[:, :, 1:], next_state[:, :, np.newaxis], axis=2)
         sample = (state, action, reward, next_state, terminal)
         replay_buffer.add(sample)
         state = next_state
@@ -284,7 +319,8 @@ def train(setting):
 
             state = env.reset()
             state = preprocess.atari(state)
-            state = np.stack([state] * 4, axis=2)
+            #state = np.stack([state] * 4, axis=2)
+            state = [state] * 4
             episode += 1
             ep_reward = 0
         ##______________________________________________________________________##
