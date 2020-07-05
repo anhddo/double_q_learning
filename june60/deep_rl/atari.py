@@ -1,8 +1,12 @@
+# ======================== 
+# Author: Anh Do
+# ========================
+
 import tensorflow as tf
 from tensorflow.keras.layers import Dense, Conv2D, Flatten
 from tensorflow.keras import Model, losses, optimizers, Sequential
 from ..algo import EpsilonGreedy
-from tqdm import trange
+from tqdm import trange, tqdm
 from datetime import datetime
 from ..util import allow_gpu_growth, Logs
 from collections import namedtuple, deque
@@ -35,22 +39,6 @@ class RingBuffer1(object):
     def add(self, sample):
         self.buffer.append(sample)
 
-
-
-    #@tf.function
-    #def get_batch(self, batch_size):
-    #    batch = []
-    #    for i in range(batch_size):
-    #        k = random.randint(0, len(self.buffer) - 4)
-    #        while True:
-    #            seq = [seq.append(self.buffer[k + j]) for j in range(4)]
-    #            sample = Sample(zip(seq))
-    #            if sum(sample.done) > 0:
-    #                break
-    #        batch.append(sample)
-    #    return batch
-
-    #@tf.function
     def get_batch(self, batch_size):
         select_index = npr.choice(len(self.buffer), batch_size)
         batch = [self.buffer[i] for i in select_index]
@@ -176,6 +164,8 @@ class DDQN(object):
         next_state = [np.stack(e, axis=2) for e in next_state]
         state, action, reward, next_state, done =\
                 (np.stack(e) for e in (state, action, reward, next_state, done))
+        reward = reward.reshape(-1, 1)
+        done = done.reshape(-1, 1)
         return self.train_(state, action, reward, next_state, done)
 
     @tf.function
@@ -188,14 +178,24 @@ class DDQN(object):
 
             Q_policy_next = self.next_policy_net(next_state)
             next_action = tf.argmax(Q_policy_next, axis=1)
+            next_action = tf.reshape(next_action, shape=(-1, 1))
 
             Q_next = self.Q_next_net(next_state)
-            V_next = tf.gather(Q_next, tf.reshape(next_action, shape=(-1, 1)), batch_dims=1)
+            V_next = tf.gather(Q_next, next_action, batch_dims=1)
             Q_target = reward + self.discount * tf.multiply(V_next, (1. - done))
+            ##-----------------------CHECK TENSOR SHAPE-----------------------------##
+            tf.debugging.assert_equal(state.shape, (self.batch_size, 84, 84, 4))
+            tf.debugging.assert_equal(action.shape, (self.batch_size, 1))
+            tf.debugging.assert_equal(next_state.shape, (self.batch_size, 84, 84, 4))
+            tf.debugging.assert_equal(reward.shape, (self.batch_size, 1))
+            tf.debugging.assert_equal(done.shape, (self.batch_size, 1))
+            tf.debugging.assert_equal(next_action.shape, (self.batch_size, 1))
+            tf.debugging.assert_equal(V_next.shape, (self.batch_size, 1))
+            ##______________________________________________________________________##
 
             loss = self.loss_func(Q, Q_target)
         grad = tape.gradient(loss, self.train_net.trainable_variables)
-        grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
+        #grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
         self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
         return {
                 'loss': loss,
@@ -277,20 +277,22 @@ def train(setting):
     #state = np.stack([state] * 4, axis=2)
     state = [state] * 4
 
+    step = 0
     for step in trange(setting['step']):
         state_ = np.stack(state, axis=2)
         action, action_info = agent.take_action(state_[np.newaxis, :], step)
+
         next_state, reward, terminal, _ = env.step(tf.squeeze(action).numpy())
+
         reward = np.clip(reward, -1, 1)
         ep_reward += reward
+
         next_state = preprocess.atari(next_state)
-        #next_state = np.append(state[:, :, 1:], next_state[:, :, np.newaxis], axis=2)
         next_state = state[1:] + [next_state]
-        ##----------------------- ----------------------------------------------##
-        ##______________________________________________________________________##
-        #next_state = np.append(state[:, :, 1:], next_state[:, :, np.newaxis], axis=2)
+
         sample = (state, action, reward, next_state, terminal)
         replay_buffer.add(sample)
+
         state = next_state
         if step > setting['start']:
             if step % setting['train_step'] == 0:
@@ -304,6 +306,9 @@ def train(setting):
                     agent.hard_update()
 
         ##-----------------------  TERMINAL SECTION ----------------------------##
+        # TODO: wrap tboard and logging section into function
+
+
         if terminal:
             if setting['tboard']:
                 tf.summary.scalar('metrics/epsilon', data=action_info['epsilon'], step=step)
@@ -319,11 +324,11 @@ def train(setting):
 
             state = env.reset()
             state = preprocess.atari(state)
-            #state = np.stack([state] * 4, axis=2)
             state = [state] * 4
             episode += 1
             ep_reward = 0
         ##______________________________________________________________________##
+        # TODO: save train model
 
     logs.save()
 
@@ -369,6 +374,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--tboard", action='store_true')
     parser.add_argument("--name")
+
 
     args = parser.parse_args()
     setting = vars(args)
