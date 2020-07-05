@@ -309,6 +309,7 @@ def train(setting):
         # TODO: wrap tboard and logging section into function
 
 
+        # TODO: plot result to file to observe result
         if terminal:
             if setting['tboard']:
                 tf.summary.scalar('metrics/epsilon', data=action_info['epsilon'], step=step)
