@@ -32,7 +32,7 @@ Sample = namedtuple('Sample', ('state', 'action', 'reward', 'next_state', 'done'
 #tf.keras.backend.set_floatx('float32')
 TF_TYPE = tf.float32
 
-class RingBuffer1(object):
+class RingBuffer(object):
     def __init__(self, N):
         self.buffer = deque(maxlen=N)
 
@@ -44,7 +44,7 @@ class RingBuffer1(object):
         batch = [self.buffer[i] for i in select_index]
         return batch
 
-class RingBuffer(object):
+class RingBuffer1(object):
     def __init__(self, N):
         self.buffer = []
         self.N = N
@@ -298,6 +298,7 @@ def train(setting):
             if step % setting['train_step'] == 0:
                 batch = replay_buffer.get_batch(setting['batch'])
                 train_info = agent.train(batch)
+                pass
 
             if setting['soft_update']:
                 agent.soft_update()
@@ -307,6 +308,7 @@ def train(setting):
 
         ##-----------------------  TERMINAL SECTION ----------------------------##
         # TODO: wrap tboard and logging section into function
+
 
 
         # TODO: plot result to file to observe result
