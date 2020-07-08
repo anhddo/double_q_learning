@@ -32,7 +32,7 @@ Sample = namedtuple('Sample', ('state', 'action', 'reward', 'next_state', 'done'
 #tf.keras.backend.set_floatx('float32')
 TF_TYPE = tf.float32
 
-class RingBuffer(object):
+class RingBuffer2(object):
     def __init__(self, N):
         self.buffer = deque(maxlen=N)
 
@@ -43,6 +43,7 @@ class RingBuffer(object):
         select_index = npr.choice(len(self.buffer), batch_size)
         batch = [self.buffer[i] for i in select_index]
         return batch
+
 
 class RingBuffer1(object):
     def __init__(self, N):
@@ -64,6 +65,33 @@ class RingBuffer1(object):
         select_index = npr.choice(self.last_index, batch_size)
         batch = [self.buffer[i] for i in select_index]
         return batch
+
+class RingBuffer(object):
+    def __init__(self, N):
+        self.buffer = []
+        self.N = N
+        self.last_index = 0
+        self.index = 0
+
+        self.image_buf = np.zeros(int(N * 1.5), 84, 84)
+        self.reward_buf = np.zeros(N)
+        self.done_buf = np.zeros(N)
+        self.action_buf = np.zeros(N)
+
+    def add(self, sample):
+        self.buffer.append(sample)
+        self.last_index = min(self.last_index + 1, self.N)
+        if self.last_index < self.N:
+            self.buffer.append(sample)
+        else:
+            self.index = (self.index + 1) % self.N
+            self.buffer[self.index] = sample
+
+    def get_batch(self, batch_size):
+        select_index = npr.choice(self.last_index, batch_size)
+        batch = [self.buffer[i] for i in select_index]
+        return batch
+
 
 class CNN(Model):
     def __init__(self, n_action):
