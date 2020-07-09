@@ -24,7 +24,7 @@ import numpy as np
 allow_gpu_growth()
 
 Sample = namedtuple('Sample', ('state', 'action', 'reward', 'next_state', 'done'))
-#tf.config.experimental_run_functions_eagerly(True)
+tf.config.experimental_run_functions_eagerly(True)
 
 #tf.keras.backend.set_floatx('float64')
 #TF_TYPE = tf.float64
@@ -67,30 +67,45 @@ class RingBuffer1(object):
         return batch
 
 class RingBuffer(object):
-    def __init__(self, N):
-        self.buffer = []
+    def __init__(self, N, batch_size):
+        self.buffer = [None] * N
         self.N = N
-        self.last_index = 0
-        self.index = 0
+        self.last_index = -1 
+        self.index = -1 
 
-        self.image_buf = np.zeros(int(N * 1.5), 84, 84)
-        self.reward_buf = np.zeros(N)
-        self.done_buf = np.zeros(N)
-        self.action_buf = np.zeros(N)
+        img_buf_size = int(N * 1.5)
+        self.free_indices = deque(range(img_buf_size))
+        self.image_buf = np.zeros((img_buf_size, 84, 84), dtype=np.uint8)
+        self.state_batch = np.zeros((batch_size, 84, 84, 4), dtype=np.uint8)
+        self.next_state_batch = np.zeros((batch_size, 84, 84, 4), dtype=np.uint8)
+        self.batch_size = batch_size
 
-    def add(self, sample):
-        self.buffer.append(sample)
+    def add(self, state_indices, action, reward, done):
+        self.buffer.append((state_indices, action, reward, done))
+        self.index = (self.index + 1) % self.N
         self.last_index = min(self.last_index + 1, self.N)
-        if self.last_index < self.N:
-            self.buffer.append(sample)
-        else:
-            self.index = (self.index + 1) % self.N
-            self.buffer[self.index] = sample
+        if self.buffer[self.index] is not None:
+            removed_indices, _, _, _ = self.buffer[self.index]
+            for e in removed_indices:
+                self.free_indices.append(e)
+        self.buffer[self.index] = (state_indices, action, reward, done)
 
-    def get_batch(self, batch_size):
-        select_index = npr.choice(self.last_index, batch_size)
-        batch = [self.buffer[i] for i in select_index]
-        return batch
+    def insert_image(self, img):
+        ind = self.free_indices.pop()
+        self.image_buf[ind, ...] = img
+        return ind
+
+
+    def get_batch(self):
+        select_index = npr.choice(self.last_index, self.batch_size)
+        state_indices, action, reward, done = zip(*[self.buffer[i] for i in select_index])
+        for i, indices in enumerate(state_indices):
+            self.state_batch[i, ...] = self.image_buf[indices[:-1]].transpose((1, 2, 0))
+            self.next_state_batch[i, ...] = self.image_buf[indices[1:]].transpose((1, 2, 0))
+        action = np.stack(action)
+        reward = np.array(reward, dtype=np.float32).reshape(self.batch_size, 1)
+        done = np.array(done, dtype=np.float32).reshape(self.batch_size, 1)
+        return self.state_batch, action, reward, self.next_state_batch, done
 
 
 class CNN(Model):
@@ -187,19 +202,11 @@ class DDQN(object):
         return A
 
     def train(self, batch):
-        state, action, reward, next_state, done = zip(*batch)
-        state = [np.stack(e, axis=2) for e in state]
-        next_state = [np.stack(e, axis=2) for e in next_state]
-        state, action, reward, next_state, done =\
-                (np.stack(e) for e in (state, action, reward, next_state, done))
-        reward = reward.reshape(-1, 1)
-        done = done.reshape(-1, 1)
+        state, action, reward, next_state, done = batch
         return self.train_(state, action, reward, next_state, done)
 
     @tf.function
     def train_(self, state, action, reward, next_state, done):
-        state, reward, next_state, done = [tf.cast(e, TF_TYPE) for e in \
-            (state, reward, next_state, done)]
         with tf.GradientTape() as tape:
             Q = self.train_net(state)
             Q = tf.gather(Q, action, batch_dims=1)
@@ -279,7 +286,7 @@ def train(setting):
     #[e.id for e in (gym.envs.registry.all()) if "pong" in e.id.lower()]
     ##______________________________________________________________________##
 
-    replay_buffer = RingBuffer(setting['buffer'])
+    replay_buffer = RingBuffer(setting['buffer'], setting['batch'])
     action_dim = env.action_space.n
 
     setting['action_dim'] = action_dim
@@ -302,29 +309,29 @@ def train(setting):
 
     state = env.reset()
     state = preprocess.atari(state)
-    #state = np.stack([state] * 4, axis=2)
-    state = [state] * 4
+    state_indices = [replay_buffer.insert_image(state) for _ in range(4)]
+    state = np.stack([state] * 4, axis=2)
+    ##
+    #np.concatenate((state[:,:,1:], npr.rand(84,84, 1)), axis=2).shape
+    ##
 
     step = 0
     for step in trange(setting['step']):
-        state_ = np.stack(state, axis=2)
-        action, action_info = agent.take_action(state_[np.newaxis, :], step)
-
+        action, action_info = agent.take_action(state[np.newaxis,...], step)
         next_state, reward, terminal, _ = env.step(tf.squeeze(action).numpy())
 
         reward = np.clip(reward, -1, 1)
+        reward = float(reward)
         ep_reward += reward
 
         next_state = preprocess.atari(next_state)
-        next_state = state[1:] + [next_state]
-
-        sample = (state, action, reward, next_state, terminal)
-        replay_buffer.add(sample)
-
-        state = next_state
+        state_indices.append(replay_buffer.insert_image(next_state))
+        state = np.concatenate((state[:, :, 1:], next_state[..., np.newaxis]), axis=2)
+        replay_buffer.add(state_indices, action, reward, float(terminal))
+        state_indices = state_indices[1:]
         if step > setting['start']:
             if step % setting['train_step'] == 0:
-                batch = replay_buffer.get_batch(setting['batch'])
+                batch = replay_buffer.get_batch()
                 train_info = agent.train(batch)
                 pass
 
@@ -355,7 +362,8 @@ def train(setting):
 
             state = env.reset()
             state = preprocess.atari(state)
-            state = [state] * 4
+            state_indices = [replay_buffer.insert_image(state) for _ in range(4)]
+            state = np.stack([state] * 4, axis=2)
             episode += 1
             ep_reward = 0
         ##______________________________________________________________________##
