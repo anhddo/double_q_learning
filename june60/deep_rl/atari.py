@@ -1,6 +1,8 @@
-# ======================== 
+# ======================================================================== 
 # Author: Anh Do
-# ========================
+# Mail: anhddo93 (at) gmail (dot) com 
+# Website: https://sites.google.com/view/anhddo 
+# ========================================================================
 
 import tensorflow as tf
 from tensorflow.keras.layers import Dense, Conv2D, Flatten
@@ -24,47 +26,13 @@ import numpy as np
 allow_gpu_growth()
 
 Sample = namedtuple('Sample', ('state', 'action', 'reward', 'next_state', 'done'))
-tf.config.experimental_run_functions_eagerly(True)
+#tf.config.experimental_run_functions_eagerly(True)
 
 #tf.keras.backend.set_floatx('float64')
 #TF_TYPE = tf.float64
 
 #tf.keras.backend.set_floatx('float32')
 TF_TYPE = tf.float32
-
-class RingBuffer2(object):
-    def __init__(self, N):
-        self.buffer = deque(maxlen=N)
-
-    def add(self, sample):
-        self.buffer.append(sample)
-
-    def get_batch(self, batch_size):
-        select_index = npr.choice(len(self.buffer), batch_size)
-        batch = [self.buffer[i] for i in select_index]
-        return batch
-
-
-class RingBuffer1(object):
-    def __init__(self, N):
-        self.buffer = []
-        self.N = N
-        self.last_index = 0
-        self.index = 0
-
-    def add(self, sample):
-        self.buffer.append(sample)
-        self.last_index = min(self.last_index + 1, self.N)
-        if self.last_index < self.N:
-            self.buffer.append(sample)
-        else:
-            self.index = (self.index + 1) % self.N
-            self.buffer[self.index] = sample
-
-    def get_batch(self, batch_size):
-        select_index = npr.choice(self.last_index, batch_size)
-        batch = [self.buffer[i] for i in select_index]
-        return batch
 
 class RingBuffer(object):
     def __init__(self, N, batch_size):
@@ -130,49 +98,48 @@ class CNN(Model):
 
 
 class DDQN(object):
-    def __init__(self, kargs):
-        action_dim = kargs['action_dim']
-        self.discount = kargs['discount']
-        self.batch_size = kargs['batch']
+    def __init__(self, args):
+        action_dim = args.action_dim
+        self.discount = args.discount
+        self.batch_size = args.batch
 
-        self.use_huber = kargs['huber']
-        self.use_mse = kargs['mse']
+        self.use_huber = args.huber
+        self.use_mse = args.mse
 
 
-        self.use_rms = kargs['rms']
-        self.use_adam = kargs['adam']
+        self.use_rms = args.rms
+        self.use_adam = args.adam
 
-        self.tau = kargs['tau']
-        self.tboard = kargs['tboard']
+        self.tau = args.tau
+        self.tboard = args.tboard
 
         self.train_net = CNN(action_dim)
         self.fixed_net = CNN(action_dim)
         self.train_net.trainable = True
         self.fixed_net.trainable = False
 
-        if kargs['dqn']:
+        if args.dqn:
             self.next_policy_net = self.fixed_net
             self.Q_next_net = self.fixed_net
-        elif kargs['ddqn']:
-            if kargs['pol']:
+        elif args.ddqn:
+            if args.pol:
                 self.next_policy_net = self.fixed_net
                 self.Q_next_net = self.train_net
-            elif kargs['vi']:
+            elif args.vi:
                 self.next_policy_net = self.train_net
                 self.Q_next_net = self.fixed_net
 
 
-        if kargs['rms']:
-            self.optimizer = optimizers.RMSprop(learning_rate=kargs['lr'], rho=0.95, epsilon=0.01)
-        elif kargs['adam']:
-            self.optimizer = optimizers.Adam(learning_rate=kargs['lr'])
-        elif kargs['sgd']:
-            self.optimizer = optimizers.SGD(learning_rate=kargs['lr'], momentum=0.9)
+        if args.rms:
+            self.optimizer = optimizers.RMSprop(learning_rate=args.lr, rho=0.95, epsilon=0.01)
+        elif args.adam:
+            self.optimizer = optimizers.Adam(learning_rate=args.lr)
+        elif args.sgd:
+            self.optimizer = optimizers.SGD(learning_rate=args.lr, momentum=0.9)
 
-        #self.loss_func = losses.Huber(tf.constant(1.0, dtype=TF_TYPE))
-        if kargs['huber']:
+        if args.huber:
             self.loss_func = losses.Huber()
-        elif kargs['mse']:
+        elif args.mse:
             self.loss_func = losses.MeanSquaredError()
 
         self.train_net(tf.random.uniform(shape=[1, 84, 84, 4], dtype=TF_TYPE))
@@ -180,7 +147,7 @@ class DDQN(object):
         self.hard_update()
 
         self.policy_net = self.train_net
-        if kargs['fixed_policy']:
+        if args.fixed_policy:
             self.policy_net = self.fixed_net
 
 
@@ -238,27 +205,6 @@ class DDQN(object):
                 'Q_target': tf.reduce_max(Q_target)
                 }
 
-#i=1
-#class Preprocess(object):
-#    def atari(self, img):
-#        global i
-#        im = Image.fromarray(img)\
-#                .convert("L")
-#        i+=1
-#        im.save('image/{}.png'.format(i))
-#        im = im\
-#                .resize((84, 110), Image.NEAREST)\
-#                .crop((0, 18, 84, 102))
-#        im.save('image/im_crop{}.png'.format(i))
-#        return np.asarray(im)
-#
-#class Preprocess(object):
-#    def atari(self, img):
-#        im = Image.fromarray(img)\
-#                .convert("L")\
-#                .resize((84, 110), Image.NEAREST)\
-#                .crop((0, 18, 84, 102))
-#        return np.asarray(im)
 class Preprocess(object):
     def atari(self, img):
         im = Image.fromarray(img)\
@@ -268,35 +214,35 @@ class Preprocess(object):
         return np.asarray(im)
 
 
-def train(setting):
-    if setting['tboard']:
+def train(args):
+    if args.tboard:
         writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
                 .format(os.path.expanduser('~'),
-                    setting['env'],
+                    args.env,
                     str(datetime.now())
                 )
             )
 
         writer.set_as_default()
-    logs = Logs(setting['save_dir'])
+    logs = Logs(args.save_dir)
 
     preprocess = Preprocess()
-    env = gym.make(setting['env'])
+    env = gym.make(args.env)
     ##----------------------- ----------------------------------------------##
     #[e.id for e in (gym.envs.registry.all()) if "pong" in e.id.lower()]
     ##______________________________________________________________________##
 
-    replay_buffer = RingBuffer(setting['buffer'], setting['batch'])
+    replay_buffer = RingBuffer(args.buffer, args.batch)
     action_dim = env.action_space.n
 
-    setting['action_dim'] = action_dim
-    agent = DDQN(setting)
+    args.action_dim = action_dim
+    agent = DDQN(args)
 
     agent.take_action = EpsilonGreedy(
-                setting['max_epsilon'],
-                setting['min_epsilon'],
-                setting['step'], 
-                setting['fraction'], 
+                args.max_epsilon,
+                args.min_epsilon,
+                args.step, 
+                args.fraction, 
                 lambda :[env.action_space.sample()],
                 lambda s: agent._take_action(s)
             ).action
@@ -311,12 +257,9 @@ def train(setting):
     state = preprocess.atari(state)
     state_indices = [replay_buffer.insert_image(state) for _ in range(4)]
     state = np.stack([state] * 4, axis=2)
-    ##
-    #np.concatenate((state[:,:,1:], npr.rand(84,84, 1)), axis=2).shape
-    ##
 
     step = 0
-    for step in trange(setting['step']):
+    for step in trange(args.step):
         action, action_info = agent.take_action(state[np.newaxis,...], step)
         next_state, reward, terminal, _ = env.step(tf.squeeze(action).numpy())
 
@@ -329,16 +272,16 @@ def train(setting):
         state = np.concatenate((state[:, :, 1:], next_state[..., np.newaxis]), axis=2)
         replay_buffer.add(state_indices, action, reward, float(terminal))
         state_indices = state_indices[1:]
-        if step > setting['start']:
-            if step % setting['train_step'] == 0:
+        if step > args.start:
+            if step % args.train_step == 0:
                 batch = replay_buffer.get_batch()
                 train_info = agent.train(batch)
                 pass
 
-            if setting['soft_update']:
+            if args.soft_update:
                 agent.soft_update()
             else:
-                if step % setting['update'] == 0:
+                if step % args.update == 0:
                     agent.hard_update()
 
         ##-----------------------  TERMINAL SECTION ----------------------------##
@@ -348,12 +291,12 @@ def train(setting):
 
         # TODO: plot result to file to observe result
         if terminal:
-            if setting['tboard']:
+            if args.tboard:
                 tf.summary.scalar('metrics/epsilon', data=action_info['epsilon'], step=step)
                 tf.summary.scalar('metrics/episode', data=episode, step=step)
                 tf.summary.scalar('metrics/reward', data=ep_reward, step=step)
             if train_info:
-                if setting['tboard']:
+                if args.tboard:
                     tf.summary.scalar('metrics/loss', data=train_info['loss'], step=step)
                     tf.summary.scalar('metrics/Q', data=train_info['Q'], step=step)
                 logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
@@ -414,23 +357,22 @@ if __name__ == '__main__':
     parser.add_argument("--tboard", action='store_true')
     parser.add_argument("--name")
 
-
     args = parser.parse_args()
-    setting = vars(args)
 
     ##-----------------------CREATE NEW FOLDER FOR ENVIRONMENT -------------##
-    if setting['tmp_dir']:
-        dir_path = join(setting["tmp_dir"], setting["env"])
+    if args.tmp_dir:
+        dir_path = join(args.tmp_dir, args.env)
         os.makedirs(dir_path, exist_ok=True)
         index = 1 + max([0,] \
                 + [int(d) for d in os.listdir(dir_path) \
                 if isdir(join(dir_path, d)) and d.isnumeric()])
-        setting['save_dir'] = join(dir_path, str(index))
-        os.makedirs(setting['save_dir'], exist_ok=True)
+        args.save_dir = join(dir_path, str(index))
+        os.makedirs(args.save_dir, exist_ok=True)
     ##______________________________________________________________________##
-    print(setting['save_dir'])
-    with open(os.path.join(setting['save_dir'], 'setting.json'), 'w') as f:
-        f.write(json.dumps(setting))
+    print(args.save_dir)
+    with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
+        f.write(json.dumps(vars(args)))
+         
 
-    for _ in range(setting['n_run']):
-        train(setting)
+    for _ in range(args.n_run):
+        train(args)
