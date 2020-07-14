@@ -2,28 +2,43 @@ import tensorflow as tf
 import json
 import glob
 import os
+from os.path import join, isdir
 
 def allow_gpu_growth():
     for gpu in tf.config.experimental.list_physical_devices('GPU'):
         tf.config.experimental.set_memory_growth(gpu, True)
+##----------------------- ----------------------------------------------##
+"""
+"""
+def incremental_path(path_pattern, is_dir=False):
+    if is_dir:
+        index = 1 + max([0,] \
+                + [int(d) for d in os.listdir(path_pattern) \
+                if isdir(join(path_pattern, d)) and d.isnumeric()])
+        return join(path_pattern, str(index))
+    else:
+        files = glob.glob(path_pattern)
+        file_names = [os.path.basename(file).split(".")[0] for file in files]
+        index = 1 + max([int(e) for e in file_names if e.isnumeric()] + [0])
+        dir_path, file_name = os.path.split(path_pattern)
+        file_name_str, extension = file_name.split('.')
+        file_path = os.path.join(dir_path, "{}.{}".format(index, extension))
+        return file_path
 
 class Logs(object):
     def __init__(self, file_path):
         self.loss = []
-        self.reward = []
+        self.train_reward = []
+        self.eval_reward = []
         self.Q = []
         self.episode = []
-        self.path = file_path
+        self.log_path = file_path
 
     def load(self):
         with open(self.path) as f:
             self.__dict__.update(json.load(f))
 
-
     def save(self):
-        files = glob.glob(os.path.join(self.path,"*.json"))
-        file_names = [os.path.basename(file).split(".")[0] for file in files]
-        index = 1 + max([int(e) for e in file_names if e.isnumeric()] + [0])
-        file_path = os.path.join(self.path, "{}.json".format(index))
-        with open(file_path, 'w') as f:
+        #file_path = incremental_path(os.path.join(self.path,"*.json"))
+        with open(self.log_path, 'w') as f:
             json.dump(self.__dict__, f)

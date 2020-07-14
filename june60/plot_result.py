@@ -6,7 +6,23 @@ import argparse
 from os import listdir
 from .util import Logs
 from tqdm import tqdm
+import os
 
+def log_plot(args):
+    log_file_path = args.log_path
+    with open(log_file_path) as f:
+        dir_path, file_name = os.path.split(log_file_path)
+        index, _ = file_name.split('.')
+        logs = json.load(f)
+        for tag in ['loss', 'train_reward', 'eval_reward']:
+            if logs[tag]:
+                tag_png = join(dir_path, '{}_{}.pdf'.format(index, tag))
+                x, y = zip(*logs[tag])
+                fig = plt.gcf()
+                fig.set_size_inches(args.width, args.height)
+                plt.clf()
+                plt.plot(x, y)
+                plt.savefig(tag_png)
 
 def get_info(logs_path):
     with open(join(logs_path, 'setting.json')) as f:
@@ -56,16 +72,20 @@ def line_plot(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finite-horizon MDP")
     parser.add_argument("--log-dir", nargs='+' )
+    parser.add_argument("--log-path")
     parser.add_argument("--label", nargs='+')
     parser.add_argument("--plot-name")
     parser.add_argument("--line", action='store_true')
     parser.add_argument("--avg", action='store_true')
-    parser.add_argument("--width", type=float, default=10)
+    parser.add_argument("--width", type=float, default=20)
     parser.add_argument("--height", type=float, default=5)
     args = parser.parse_args()
-    args = vars(args)
-    print(args)
-    if args['line']:
+    #args = vars(args)
+
+
+    if args.log_path:
+        log_plot(args)
+    if args.line:
         line_plot(args)
-    elif args['avg']:
+    elif args.avg:
         avg_plot(args)
