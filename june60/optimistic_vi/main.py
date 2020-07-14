@@ -81,12 +81,13 @@ def train(setting):
             state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
             ep_reward = 0
 
-    files = glob.glob(os.path.join(setting['save_dir'],"*.csv"))
-    csv_index = 1 + max([int(os.path.basename(file).split('.')[0]) for file in files] + [0])
-    csv_path = os.path.join(setting['save_dir'], '{}.csv'.format(csv_index))
-    reward, timestep = zip(*tracking)
-    df = pd.DataFrame({'t': timestep, 'reward': reward, 'algo': setting['algo']})
-    df.to_csv(csv_path)
+    if setting['write_result']:
+        files = glob.glob(os.path.join(setting['save_dir'],"*.csv"))
+        csv_index = 1 + max([int(os.path.basename(file).split('.')[0]) for file in files] + [0])
+        csv_path = os.path.join(setting['save_dir'], '{}.csv'.format(csv_index))
+        reward, timestep = zip(*tracking)
+        df = pd.DataFrame({'t': timestep, 'reward': reward, 'algo': setting['algo']})
+        df.to_csv(csv_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finite-horizon MDP")
@@ -105,6 +106,7 @@ if __name__ == '__main__':
     parser.add_argument("--fraction", type=float, default=0.3)
     parser.add_argument("--debug", action='store_true')
     parser.add_argument("--pause", action='store_true')
+    parser.add_argument("--write-result", action='store_true')
 
     args = parser.parse_args()
 #     args = parser.parse_args('--fourier-order 2 --env-name Acrobot-v1 --save-dir tmp/bot --buffer-size 2000 --step 20000 --beta 1  --n-run 5'.split())
