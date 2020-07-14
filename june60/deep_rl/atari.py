@@ -10,7 +10,8 @@ from tensorflow.keras import Model, losses, optimizers, Sequential
 from ..algo import EpsilonGreedy
 from tqdm import trange, tqdm
 from datetime import datetime
-from ..util import allow_gpu_growth, Logs
+from ..util import allow_gpu_growth, incremental_path, Logs
+from ..plot_result import log_plot
 from collections import namedtuple, deque
 from os.path import join, isdir
 import numpy.random as npr
@@ -63,7 +64,6 @@ class RingBuffer(object):
         self.image_buf[ind, ...] = img
         return ind
 
-
     def get_batch(self):
         select_index = npr.choice(self.last_index, self.batch_size)
         state_indices, action, reward, done = zip(*[self.buffer[i] for i in select_index])
@@ -79,12 +79,30 @@ class RingBuffer(object):
 class CNN(Model):
     def __init__(self, n_action):
         super(CNN, self).__init__()
-        self.conv1 = Conv2D(filters=32, kernel_size=8, strides=4,  activation='relu')
-        self.conv2 = Conv2D(filters=64, kernel_size=4, strides=2,  activation='relu')
-        self.conv3 = Conv2D(filters=64, kernel_size=3, strides=1,  activation='relu')
+        self.conv1 = Conv2D(filters=32, 
+                kernel_size=8,
+                strides=4,
+                activation='relu',
+                kernel_initializer='he_normal')
+
+        self.conv2 = Conv2D(filters=64, 
+                kernel_size=4,
+                strides=2,
+                activation='relu',
+                kernel_initializer='he_normal')
+
+        self.conv3 = Conv2D(filters=64, 
+                kernel_size=3,
+                strides=1,
+                activation='relu',
+                kernel_initializer='he_normal')
+
         self.flatten = Flatten()
-        self.dense1 = Dense(512, activation='relu')
-        self.dense2 = Dense(n_action)
+        self.dense1 = Dense(512, 
+                activation='relu',
+                kernel_initializer='he_normal')
+        self.dense2 = Dense(n_action,
+                kernel_initializer='he_normal')
 
     @tf.function
     def call(self, x):
@@ -162,6 +180,15 @@ class DDQN(object):
                  self.fixed_net.get_weights())]
         self.fixed_net.set_weights(weights)
 
+    def save_model(self, path):
+        self.train_net.save_weights(path)
+
+    def load_model(self, path):
+        if path is not None:
+            self.train_net.load_weights(path)
+        else:
+            print('No model path')
+
     @tf.function
     def _take_action(self, state):
         Q = self.policy_net(state)
@@ -184,15 +211,15 @@ class DDQN(object):
 
             Q_next = self.Q_next_net(next_state)
             V_next = tf.gather(Q_next, next_action, batch_dims=1)
-            Q_target = reward + self.discount * tf.multiply(V_next, (1. - done))
+            Q_target = reward + self.discount * tf.multiply(tf.stop_gradient(V_next), (1. - done))
             ##-----------------------CHECK TENSOR SHAPE-----------------------------##
-            tf.debugging.assert_equal(state.shape, (self.batch_size, 84, 84, 4))
-            tf.debugging.assert_equal(action.shape, (self.batch_size, 1))
-            tf.debugging.assert_equal(next_state.shape, (self.batch_size, 84, 84, 4))
-            tf.debugging.assert_equal(reward.shape, (self.batch_size, 1))
-            tf.debugging.assert_equal(done.shape, (self.batch_size, 1))
-            tf.debugging.assert_equal(next_action.shape, (self.batch_size, 1))
-            tf.debugging.assert_equal(V_next.shape, (self.batch_size, 1))
+            #tf.debugging.assert_equal(state.shape, (self.batch_size, 84, 84, 4))
+            #tf.debugging.assert_equal(action.shape, (self.batch_size, 1))
+            #tf.debugging.assert_equal(next_state.shape, (self.batch_size, 84, 84, 4))
+            #tf.debugging.assert_equal(reward.shape, (self.batch_size, 1))
+            #tf.debugging.assert_equal(done.shape, (self.batch_size, 1))
+            #tf.debugging.assert_equal(next_action.shape, (self.batch_size, 1))
+            #tf.debugging.assert_equal(V_next.shape, (self.batch_size, 1))
             ##______________________________________________________________________##
 
             loss = self.loss_func(Q, Q_target)
@@ -213,6 +240,28 @@ class Preprocess(object):
                 #.crop((0, 18, 84, 102))
         return np.asarray(im)
 
+def evaluation(args, agent):
+    ep_reward = 0
+    env = gym.make(args.env)
+    #env = gym.wrappers.Monitor(env, 'tmp/recording', force=True)
+
+    preprocess = Preprocess()
+    img = env.reset()
+    img = preprocess.atari(img)
+    state = np.stack([img] * 4, axis=2)
+    for _ in range(100000):
+        if npr.uniform() < 0.05:
+            action = env.action_space.sample()
+        else:
+            action = agent._take_action(state[np.newaxis,...]) 
+        img, reward, terminal, info = env.step(tf.squeeze(action).numpy())
+        img = preprocess.atari(img)
+        state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
+        ep_reward += reward
+        if terminal:
+            return ep_reward
+    print("Evaluate over 100k frames")
+
 
 def train(args):
     if args.tboard:
@@ -224,7 +273,8 @@ def train(args):
             )
 
         writer.set_as_default()
-    logs = Logs(args.save_dir)
+    args.log_path = incremental_path(join(args.log_dir, '*.json'))
+    logs = Logs(args.log_path)
 
     preprocess = Preprocess()
     env = gym.make(args.env)
@@ -247,31 +297,44 @@ def train(args):
                 lambda s: agent._take_action(s)
             ).action
 
+    agent.load_model(args.load_model_path)
     ep_reward = 0
     tracking = []
     episode = 0
 
     train_info = None
 
-    state = env.reset()
-    state = preprocess.atari(state)
-    state_indices = [replay_buffer.insert_image(state) for _ in range(4)]
-    state = np.stack([state] * 4, axis=2)
+    img = env.reset()
+    img = preprocess.atari(img)
+    state_indices = [replay_buffer.insert_image(img) for _ in range(4)]
+    state = np.stack([img] * 4, axis=2)
 
     step = 0
+
+    save_step = args.step // args.n_save
+    init_lives = env.unwrapped.ale.lives()
+    
+    save_train_step = int(step // 1e6) + 1
+
     for step in trange(args.step):
         action, action_info = agent.take_action(state[np.newaxis,...], step)
-        next_state, reward, terminal, _ = env.step(tf.squeeze(action).numpy())
+        img, reward, terminal, info = env.step(tf.squeeze(action).numpy())
+        is_live_loss = info['ale.lives'] < init_lives
+        terminal = terminal or is_live_loss
 
         reward = np.clip(reward, -1, 1)
         reward = float(reward)
         ep_reward += reward
 
-        next_state = preprocess.atari(next_state)
-        state_indices.append(replay_buffer.insert_image(next_state))
-        state = np.concatenate((state[:, :, 1:], next_state[..., np.newaxis]), axis=2)
+        img = preprocess.atari(img)
+        state_indices.append(replay_buffer.insert_image(img))
+        state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
         replay_buffer.add(state_indices, action, reward, float(terminal))
         state_indices = state_indices[1:]
+        #args.eval_step = 10
+        if step % args.eval_step == 0:
+            eval_reward = evaluation(args, agent)
+            logs.eval_reward.append((step, eval_reward))
         if step > args.start:
             if step % args.train_step == 0:
                 batch = replay_buffer.get_batch()
@@ -285,32 +348,32 @@ def train(args):
                     agent.hard_update()
 
         ##-----------------------  TERMINAL SECTION ----------------------------##
-        # TODO: wrap tboard and logging section into function
-
-
-
-        # TODO: plot result to file to observe result
         if terminal:
             if args.tboard:
                 tf.summary.scalar('metrics/epsilon', data=action_info['epsilon'], step=step)
                 tf.summary.scalar('metrics/episode', data=episode, step=step)
                 tf.summary.scalar('metrics/reward', data=ep_reward, step=step)
-            if train_info:
+            if train_info and step % save_train_step == 0:
                 if args.tboard:
                     tf.summary.scalar('metrics/loss', data=train_info['loss'], step=step)
                     tf.summary.scalar('metrics/Q', data=train_info['Q'], step=step)
                 logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
                 logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
-            logs.reward.append((step, ep_reward))
+            logs.train_reward.append((step, ep_reward))
 
-            state = env.reset()
-            state = preprocess.atari(state)
-            state_indices = [replay_buffer.insert_image(state) for _ in range(4)]
-            state = np.stack([state] * 4, axis=2)
+            img = env.reset()
+            img = preprocess.atari(img)
+            state_indices = [replay_buffer.insert_image(img) for _ in range(4)]
+            state = np.stack([img] * 4, axis=2)
             episode += 1
             ep_reward = 0
+        ##----------------------- SAVE MODEL AND LOGS---------------------------##
+        #save_step = 40
+        if step % save_step == 0:
+            agent.save_model(join(args.model_dir, '{}.ckpt'.format(int(step // save_step))))
+            logs.save()
+            #log_plot(logs.log_path)
         ##______________________________________________________________________##
-        # TODO: save train model
 
     logs.save()
 
@@ -320,7 +383,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finite-horizon MDP")
     parser.add_argument("--tmp-dir")
     parser.add_argument("--save-dir")
+    parser.add_argument("--load-model-path")
     parser.add_argument("--env", default='CartPole-v0')
+    parser.add_argument("--n-save", type=int, default=100)
 
     parser.add_argument("--step", type=int, default=10000)
     parser.add_argument("--update", type=int, default=100)
@@ -329,6 +394,7 @@ if __name__ == '__main__':
     parser.add_argument("--n-run", type=int, default=10)
     parser.add_argument("--discount", type=float, default=0.99)
     parser.add_argument("--train-step", type=int, default=1)
+    parser.add_argument("--eval-step", type=int, default=50000)
     parser.add_argument("--start", type=int, default=1000)
 
     parser.add_argument("--fixed-policy", action='store_true')
@@ -363,11 +429,13 @@ if __name__ == '__main__':
     if args.tmp_dir:
         dir_path = join(args.tmp_dir, args.env)
         os.makedirs(dir_path, exist_ok=True)
-        index = 1 + max([0,] \
-                + [int(d) for d in os.listdir(dir_path) \
-                if isdir(join(dir_path, d)) and d.isnumeric()])
-        args.save_dir = join(dir_path, str(index))
+
+        args.save_dir = incremental_path(dir_path, is_dir=True)
+        args.model_dir = join(args.save_dir, 'model')
+        args.log_dir = join(args.save_dir, 'logs')
+
         os.makedirs(args.save_dir, exist_ok=True)
+        os.makedirs(args.log_dir, exist_ok=True)
     ##______________________________________________________________________##
     print(args.save_dir)
     with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
