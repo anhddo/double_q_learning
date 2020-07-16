@@ -50,7 +50,6 @@ class RingBuffer(object):
         self.batch_size = batch_size
 
     def add(self, state_indices, action, reward, done):
-        self.buffer.append((state_indices, action, reward, done))
         self.index = (self.index + 1) % self.N
         self.last_index = min(self.last_index + 1, self.N)
         if self.buffer[self.index] is not None:
@@ -305,22 +304,19 @@ def train(args):
     train_info = None
 
     img = env.reset()
+    current_lives = env.unwrapped.ale.lives()
     img = preprocess.atari(img)
     state_indices = [replay_buffer.insert_image(img) for _ in range(4)]
     state = np.stack([img] * 4, axis=2)
 
-    step = 0
-
-    save_step = args.step // args.n_save
-    init_lives = env.unwrapped.ale.lives()
-    
-    save_train_step = int(step // 1e6) + 1
+    save_model_step = args.step // args.n_model_save
+    save_log_step = args.step // args.n_log_save
 
     for step in trange(args.step):
         action, action_info = agent.take_action(state[np.newaxis,...], step)
-        img, reward, terminal, info = env.step(tf.squeeze(action).numpy())
-        is_live_loss = info['ale.lives'] < init_lives
-        terminal = terminal or is_live_loss
+        img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
+        is_live_loss = info['ale.lives'] < current_lives
+        terminal = end_episode or is_live_loss
 
         reward = np.clip(reward, -1, 1)
         reward = float(reward)
@@ -335,6 +331,7 @@ def train(args):
         if step % args.eval_step == 0:
             eval_reward = evaluation(args, agent)
             logs.eval_reward.append((step, eval_reward))
+        train_info = None
         if step > args.start:
             if step % args.train_step == 0:
                 batch = replay_buffer.get_batch()
@@ -348,30 +345,31 @@ def train(args):
                     agent.hard_update()
 
         ##-----------------------  TERMINAL SECTION ----------------------------##
-        if terminal:
+        if end_episode:
             if args.tboard:
                 tf.summary.scalar('metrics/epsilon', data=action_info['epsilon'], step=step)
                 tf.summary.scalar('metrics/episode', data=episode, step=step)
                 tf.summary.scalar('metrics/reward', data=ep_reward, step=step)
-            if train_info and step % save_train_step == 0:
-                if args.tboard:
-                    tf.summary.scalar('metrics/loss', data=train_info['loss'], step=step)
-                    tf.summary.scalar('metrics/Q', data=train_info['Q'], step=step)
-                logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
-                logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
             logs.train_reward.append((step, ep_reward))
 
             img = env.reset()
+            current_lives = env.unwrapped.ale.lives()
             img = preprocess.atari(img)
             state_indices = [replay_buffer.insert_image(img) for _ in range(4)]
             state = np.stack([img] * 4, axis=2)
             episode += 1
             ep_reward = 0
-        ##----------------------- SAVE MODEL AND LOGS---------------------------##
-        #save_step = 40
-        if step % save_step == 0:
-            agent.save_model(join(args.model_dir, '{}.ckpt'.format(int(step // save_step))))
+
+        if train_info and step % save_log_step == 0:
+            if args.tboard:
+                tf.summary.scalar('metrics/loss', data=train_info['loss'], step=step)
+                tf.summary.scalar('metrics/Q', data=train_info['Q'], step=step)
+            logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
+            logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
             logs.save()
+        ##----------------------- SAVE MODEL---------------------------##
+        if step % save_model_step == 0:
+            agent.save_model(join(args.model_dir, '{}.ckpt'.format(step // save_model_step)))
             #log_plot(logs.log_path)
         ##______________________________________________________________________##
 
@@ -385,7 +383,8 @@ if __name__ == '__main__':
     parser.add_argument("--save-dir")
     parser.add_argument("--load-model-path")
     parser.add_argument("--env", default='CartPole-v0')
-    parser.add_argument("--n-save", type=int, default=100)
+    parser.add_argument("--n-model-save", type=int, default=1000)
+    parser.add_argument("--n-log-save", type=int, default=1000000)
 
     parser.add_argument("--step", type=int, default=10000)
     parser.add_argument("--update", type=int, default=100)
