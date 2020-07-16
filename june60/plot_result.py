@@ -14,15 +14,18 @@ def log_plot(args):
         dir_path, file_name = os.path.split(log_file_path)
         index, _ = file_name.split('.')
         logs = json.load(f)
-        for tag in ['loss', 'train_reward', 'eval_reward']:
+        tags = ['loss', 'train_reward', 'eval_reward']
+        fig = plt.gcf()
+        fig.set_size_inches(args.width, args.height)
+        plt.clf()
+        for i, tag in enumerate(tags):
             if logs[tag]:
-                tag_png = join(dir_path, '{}_{}.pdf'.format(index, tag))
+                plt.subplot(len(tags), 1, i + 1)
+                #tag_png = join(dir_path, '{}_{}.pdf'.format(index, tag))
                 x, y = zip(*logs[tag])
-                fig = plt.gcf()
-                fig.set_size_inches(args.width, args.height)
-                plt.clf()
+                plt.grid()
                 plt.plot(x, y)
-                plt.savefig(tag_png)
+                plt.savefig(join(dir_path, '{}.pdf'.format(index)))
 
 def get_info(logs_path):
     with open(join(logs_path, 'setting.json')) as f:
