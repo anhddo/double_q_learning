@@ -4,6 +4,10 @@
 # Website: https://sites.google.com/view/anhddo 
 # ========================================================================
 
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+
+from timeit import default_timer as timer
 import tensorflow as tf
 from ..algo import EpsilonGreedy
 from tqdm import trange, tqdm
@@ -17,12 +21,10 @@ import numpy.random as npr
 import gym
 import argparse
 import sys
-import os
 import json
 import time
 from PIL import Image
 import numpy as np
-
 allow_gpu_growth()
 
 #Sample = namedtuple('Sample', ('state', 'action', 'reward', 'next_state', 'done'))
@@ -44,7 +46,6 @@ def preprocess(img):
 def evaluation(args, agent):
     ep_reward = 0
     env = gym.make(args.env)
-    #env = gym.wrappers.Monitor(env, 'tmp/recording', force=True)
 
     img = env.reset()
     img = preprocess(img)
@@ -62,17 +63,40 @@ def evaluation(args, agent):
             return ep_reward
     print("Evaluate over 100k frames")
 
+def record(args):
+    env = gym.make(args.env)
+    env = gym.wrappers.Monitor(env, args.record_path, force=True)
+    args.action_dim = env.action_space.n
+    img = env.reset()
+    img = preprocess(img)
+    state = np.stack([img] * 4, axis=2)
+    agent = DDQN(args)
+    agent.load_model(args.load_model_path)
+    agent.take_action = EpsilonGreedy(
+                0.05,
+                0.05,
+                1, 
+                1, 
+                lambda :[env.action_space.sample()],
+                lambda s: agent._take_action(s)
+            ).action
+
+    while True:
+        action, action_info = agent.take_action(state[np.newaxis,...], 0)
+        img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
+        img = preprocess(img)
+        state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
+        if end_episode:
+            break
+    env.close()
+
+def calc_date_time(second):
+    day = int(second / (24 * 3600))
+    hour = int((second - day * 24 * 3600) / 3600)
+    minute = int((second - day * 24 * 3600 - hour * 3600) / 60)
+    return day, hour, minute
 
 def train(args):
-    if args.tboard:
-        writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
-                .format(os.path.expanduser('~'),
-                    args.env,
-                    str(datetime.now())
-                )
-            )
-
-        writer.set_as_default()
     args.log_path = incremental_path(join(args.log_dir, '*.json'))
     logs = Logs(args.log_path)
 
@@ -103,79 +127,98 @@ def train(args):
 
     train_info = None
 
-    img = env.reset()
-    current_lives = env.unwrapped.ale.lives()
-    img = preprocess(img)
-    state_indices = [replay_buffer.insert_image(img) for _ in range(4)]
-    state = np.stack([img] * 4, axis=2)
-
     save_model_step = args.step // args.n_model_save
     save_log_step = args.step // args.n_log_save
 
-    for step in trange(args.step):
-        action, action_info = agent.take_action(state[np.newaxis,...], step)
-        img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
-        # We set terminal flag is true every time agent loses life
-        is_live_loss = info['ale.lives'] < current_lives
-        current_lives = info['ale.lives']
-        terminal = end_episode or is_live_loss
+    last_ep_reward = 0
 
-        reward = np.clip(reward, -1, 1)
-        reward = float(reward)
-        ep_reward += reward
-
-        # Stacking the reward to create new next state
+    step = 0
+    start_time = timer()
+    last_eval_time = timer()
+    while step < args.step:
+        img = env.reset()
+        current_lives = env.unwrapped.ale.lives()
         img = preprocess(img)
-        state_indices.append(replay_buffer.insert_image(img))
-        state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
-        replay_buffer.add(state_indices, action, reward, float(terminal))
-        state_indices = state_indices[1:]
+        state_indices = [replay_buffer.insert_image(img) for _ in range(4)]
+        state = np.stack([img] * 4, axis=2)
+        for _ in range(100000):
+            step += 1
+            action, action_info = agent.take_action(state[np.newaxis,...], step)
+            img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
+            # We set terminal flag is true every time agent loses life
+            is_live_loss = info['ale.lives'] < current_lives
+            current_lives = info['ale.lives']
+            terminal = end_episode or is_live_loss
 
-        if step % args.eval_step == 0:
-            eval_reward = evaluation(args, agent)
-            logs.eval_reward.append((step, eval_reward))
-        train_info = None
-        if step > args.start:
-            if step % args.train_step == 0:
-                batch = replay_buffer.get_batch()
-                train_info = agent.train(batch)
-                pass
+            reward = np.clip(reward, -1, 1)
+            reward = float(reward)
+            ep_reward += reward
 
-            if args.soft_update:
-                agent.soft_update()
-            else:
-                if step % args.update == 0:
-                    agent.hard_update()
-
-        ##-----------------------  TERMINAL SECTION ----------------------------##
-        if end_episode:
-            if args.tboard:
-                tf.summary.scalar('metrics/epsilon', data=action_info['epsilon'], step=step)
-                tf.summary.scalar('metrics/episode', data=episode, step=step)
-                tf.summary.scalar('metrics/reward', data=ep_reward, step=step)
-            logs.train_reward.append((step, ep_reward))
-
-            img = env.reset()
-            current_lives = env.unwrapped.ale.lives()
+            # Stacking the reward to create new next state
             img = preprocess(img)
-            state_indices = [replay_buffer.insert_image(img) for _ in range(4)]
-            state = np.stack([img] * 4, axis=2)
-            episode += 1
-            ep_reward = 0
+            state_indices.append(replay_buffer.insert_image(img))
+            state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
+            replay_buffer.add(state_indices, action, reward, float(terminal))
+            state_indices = state_indices[1:]
 
-        if train_info and step % save_log_step == 0:
-            if args.tboard:
-                tf.summary.scalar('metrics/loss', data=train_info['loss'], step=step)
-                tf.summary.scalar('metrics/Q', data=train_info['Q'], step=step)
-            logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
-            logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
-            logs.save()
-        ##----------------------- SAVE MODEL---------------------------##
-        if step % save_model_step == 0:
-            agent.save_model(join(args.model_dir, '{}.ckpt'.format(step // save_model_step)))
-            #log_plot(logs.log_path)
-        ##______________________________________________________________________##
+            train_info = None
+            if step > args.start:
+                if step % args.train_step == 0:
+                    batch = replay_buffer.get_batch()
+                    train_info = agent.train(batch)
+                    pass
 
+                if args.soft_update:
+                    agent.soft_update()
+                else:
+                    if step % args.update == 0:
+                        agent.hard_update()
+            ##----------------------- LOGGING ----------------------------------------------##
+            if step % args.eval_step == 0:
+                time_elapsed = timer() - start_time
+                speed = int(args.eval_step / (timer() - last_eval_time))
+                last_eval_time = timer()
+                time_left = (args.step - step) / speed
+                day, hour, minute = calc_date_time(time_elapsed)
+                day_left, hour_left, minute_left = calc_date_time(time_left)
+                eval_reward = evaluation(args, agent)
+
+                pstr = [
+                        args.save_dir,
+                        "{:2d}%, speed:{} it/s, elapsed time:{}d-{}h-{}m, time left: {}d-{}h-{}m"
+                        .format(int(step / args.step * 100),
+                                speed, day, hour, minute,
+                                day_left, hour_left, minute_left),
+                        "evaluation reward: {}".format(eval_reward)
+                        ]
+                L = max([len(e) for e in pstr])
+                print('|'+'=' * L+'|')
+                for e in pstr:
+                    print('|' + e + ' ' * (L - len(e)) + '|')
+                print('|'+'=' * L+'|')
+                print('\n')
+
+
+                logs.eval_reward.append((step, eval_reward))
+                if train_info:
+                    logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
+                    logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
+                logs.train_reward.append((step, last_ep_reward))
+                logs.save()
+
+            ##-----------------------  TERMINAL SECTION ----------------------------##
+            if end_episode:
+                last_ep_reward = ep_reward
+                episode += 1
+                ep_reward = 0
+                break
+            ##----------------------- SAVE MODEL---------------------------##
+            if step % save_model_step == 0:
+                agent.save_model(join(args.model_dir, '{}.ckpt'.format(step // save_model_step)))
+                #log_plot(logs.log_path)
+            ##______________________________________________________________________##
+
+    agent.save_model(join(args.model_dir, '{}.ckpt'.format(step // save_model_step)))
     logs.save()
 
 
@@ -184,6 +227,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finite-horizon MDP")
     parser.add_argument("--tmp-dir")
     parser.add_argument("--save-dir")
+    parser.add_argument("--record", action='store_true')
+    parser.add_argument("--record-path")
     parser.add_argument("--load-model-path")
     parser.add_argument("--env", default='CartPole-v0')
     parser.add_argument("--n-model-save", type=int, default=1000)
@@ -222,27 +267,31 @@ if __name__ == '__main__':
     parser.add_argument("--dqn", action='store_true')
     parser.add_argument("--ddqn", action='store_true')
 
-    parser.add_argument("--tboard", action='store_true')
     parser.add_argument("--name")
 
     args = parser.parse_args()
 
-    ##-----------------------CREATE NEW FOLDER FOR ENVIRONMENT -------------##
-    if args.tmp_dir:
-        dir_path = join(args.tmp_dir, args.env)
-        os.makedirs(dir_path, exist_ok=True)
-
-        args.save_dir = incremental_path(dir_path, is_dir=True)
-        args.model_dir = join(args.save_dir, 'model')
-        args.log_dir = join(args.save_dir, 'logs')
-
-        os.makedirs(args.save_dir, exist_ok=True)
-        os.makedirs(args.log_dir, exist_ok=True)
-    ##______________________________________________________________________##
-    print(args.save_dir)
-    with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
-        f.write(json.dumps(vars(args)))
          
 
-    for _ in range(args.n_run):
-        train(args)
+    if args.record:
+        record(args)
+    else:
+        ##-----------------------TRAIN SECTION -------------##
+        ##-----------------------CREATE NEW FOLDER FOR ENVIRONMENT -------------##
+        if args.tmp_dir:
+            dir_path = join(args.tmp_dir, args.env)
+            os.makedirs(dir_path, exist_ok=True)
+
+            args.save_dir = incremental_path(dir_path, is_dir=True)
+            args.model_dir = join(args.save_dir, 'model')
+            args.log_dir = join(args.save_dir, 'logs')
+
+            os.makedirs(args.save_dir, exist_ok=True)
+            os.makedirs(args.log_dir, exist_ok=True)
+        ##______________________________________________________________________##
+        print(args.save_dir)
+        with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
+            f.write(json.dumps(vars(args)))
+
+        for _ in range(args.n_run):
+            train(args)
