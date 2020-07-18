@@ -14,18 +14,31 @@ def log_plot(args):
         dir_path, file_name = os.path.split(log_file_path)
         index, _ = file_name.split('.')
         logs = json.load(f)
-        tags = ['loss', 'train_reward', 'eval_reward']
         fig = plt.gcf()
         fig.set_size_inches(args.width, args.height)
         plt.clf()
-        for i, tag in enumerate(tags):
-            if logs[tag]:
-                plt.subplot(len(tags), 1, i + 1)
-                #tag_png = join(dir_path, '{}_{}.pdf'.format(index, tag))
-                x, y = zip(*logs[tag])
-                plt.grid()
-                plt.plot(x, y)
-                plt.savefig(join(dir_path, '{}.pdf'.format(index)))
+
+        plt.subplot(311)
+        plt.grid()
+        x, y = zip(*logs['train_reward'])
+        plt.plot(x, y, label='train reward')
+        x, y = zip(*logs['eval_reward'])
+        plt.plot(x, y, label='eval reward')
+        plt.title('reward')
+
+        plt.subplot(312)
+        plt.grid()
+        x, y = zip(*logs['loss'])
+        plt.plot(x, y, label='loss')
+        plt.title('loss')
+
+        plt.subplot(313)
+        plt.grid()
+        plt.grid()
+        x, y = zip(*logs['Q'])
+        plt.plot(x, y, label='Q')
+        plt.title('Q value')
+        plt.savefig(join(dir_path, '{}.pdf'.format(index)))
 
 def get_info(logs_path):
     with open(join(logs_path, 'setting.json')) as f:
