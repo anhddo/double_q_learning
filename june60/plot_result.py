@@ -24,20 +24,20 @@ def log_plot(args):
         plt.plot(x, y, label='train reward')
         x, y = zip(*logs['eval_reward'])
         plt.plot(x, y, label='eval reward')
-        plt.title('reward')
+        plt.legend()
 
         plt.subplot(312)
         plt.grid()
         x, y = zip(*logs['loss'])
         plt.plot(x, y, label='loss')
-        plt.title('loss')
+        plt.legend()
 
         plt.subplot(313)
         plt.grid()
         plt.grid()
         x, y = zip(*logs['Q'])
-        plt.plot(x, y, label='Q')
-        plt.title('Q value')
+        plt.plot(x, y, label='Q value')
+        plt.legend()
         plt.savefig(join(dir_path, '{}.pdf'.format(index)))
 
 def get_info(logs_path):
