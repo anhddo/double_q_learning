@@ -25,7 +25,6 @@ class DDQN(object):
         self.use_adam = args.adam
 
         self.tau = args.tau
-        self.tboard = args.tboard
 
         self.train_net = CNN(action_dim)
         self.fixed_net = CNN(action_dim)
