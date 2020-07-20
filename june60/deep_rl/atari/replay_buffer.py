@@ -8,6 +8,15 @@ import numpy as np
 from collections import namedtuple, deque
 import numpy.random as npr
 
+
+
+# ====> THIS CODE IS FASTER BUT SEEM INCORRECT
+
+
+
+
+
+
 class RingBuffer(object):
     """
     To void creating new numpy array every time append data to buffer.
@@ -32,9 +41,12 @@ class RingBuffer(object):
         self.index = (self.index + 1) % self.N
         self.last_index = min(self.last_index + 1, self.N)
         if self.buffer[self.index] is not None:
-            removed_indices, _, _, _ = self.buffer[self.index]
-            for e in removed_indices:
-                self.free_indices.append(e)
+            removed_indices, _, _, removed_done = self.buffer[self.index]
+            if removed_done:
+                for e in removed_indices:
+                    self.free_indices.append(e)
+            else:
+                self.free_indices.append(removed_indices[0])
         self.buffer[self.index] = (state_indices, action, reward, done)
 
     def insert_image(self, img):

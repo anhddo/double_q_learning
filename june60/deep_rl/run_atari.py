@@ -135,12 +135,18 @@ def train(args):
     step = 0
     start_time = timer()
     last_eval_time = timer()
+    action_index = {key: i for i, key in enumerate(env.unwrapped.get_action_meanings())}
     while step < args.step:
         img = env.reset()
         current_lives = env.unwrapped.ale.lives()
         img = preprocess(img)
-        state_indices = [replay_buffer.insert_image(img) for _ in range(4)]
+        #state_indices = [replay_buffer.insert_image(img) for _ in range(4)]
+        state_indices = []
         state = np.stack([img] * 4, axis=2)
+             
+        import pdb; pdb.set_trace();
+        noop_max = npr.randint(30)
+        #Each episode run a fixed number of steps
         for _ in range(100000):
             step += 1
             action, action_info = agent.take_action(state[np.newaxis,...], step)
