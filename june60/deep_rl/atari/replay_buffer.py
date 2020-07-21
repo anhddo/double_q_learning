@@ -31,6 +31,7 @@ class RingBuffer(object):
         self.index = -1 
 
         img_buf_size = int(N * 1.5)
+        self.buffer_count = np.zeros(img_buf_size, dtype=np.uint8)
         self.free_indices = deque(range(img_buf_size))
         self.image_buf = np.zeros((img_buf_size, 84, 84), dtype=np.uint8)
         self.state_batch = np.zeros((batch_size, 84, 84, 4), dtype=np.uint8)
@@ -40,14 +41,17 @@ class RingBuffer(object):
     def add(self, state_indices, action, reward, done):
         self.index = (self.index + 1) % self.N
         self.last_index = min(self.last_index + 1, self.N)
+        
         if self.buffer[self.index] is not None:
             removed_indices, _, _, removed_done = self.buffer[self.index]
-            if removed_done:
-                for e in removed_indices:
-                    self.free_indices.append(e)
-            else:
-                self.free_indices.append(removed_indices[0])
+            self.buffer_count[removed_indices] -= 1
+            self.buffer_count[state_indices] += 1
+            for i in removed_indices:
+                if self.buffer_count[i] == 0:
+                    self.free_indices.append(i)
+                    
         self.buffer[self.index] = (state_indices, action, reward, done)
+        self.buffer_count[state_indices] += 1
 
     def insert_image(self, img):
         ind = self.free_indices.pop()

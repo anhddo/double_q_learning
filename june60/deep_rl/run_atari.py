@@ -7,12 +7,11 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
-from timeit import default_timer as timer
 import tensorflow as tf
 from ..algo import EpsilonGreedy
 from tqdm import trange, tqdm
 from datetime import datetime
-from ..util import allow_gpu_growth, incremental_path, Logs
+from ..util import allow_gpu_growth, incremental_path, Logs, PrintUtil
 from ..plot_result import log_plot
 from os.path import join, isdir
 from .atari.ddqn import DDQN
@@ -90,11 +89,6 @@ def record(args):
             break
     env.close()
 
-def calc_date_time(second):
-    day = int(second / (24 * 3600))
-    hour = int((second - day * 24 * 3600) / 3600)
-    minute = int((second - day * 24 * 3600 - hour * 3600) / 60)
-    return day, hour, minute
 
 def train(args):
     args.log_path = incremental_path(join(args.log_dir, '*.json'))
@@ -132,9 +126,9 @@ def train(args):
 
     last_ep_reward = 0
 
+    print_util = PrintUtil(args.eval_step, args.step)
+
     step = 0
-    start_time = timer()
-    last_eval_time = timer()
     action_index = {key: i for i, key in enumerate(env.unwrapped.get_action_meanings())}
     while step < args.step:
         img = env.reset()
@@ -144,8 +138,15 @@ def train(args):
         state_indices = []
         state = np.stack([img] * 4, axis=2)
              
-        import pdb; pdb.set_trace();
+        #Run a maximum NOOP to create the randomness of the game,
+        #The agent may overfit to a fix sequence if the game dont have any randomness.
         noop_max = npr.randint(30)
+        for _ in range(noop_max):
+            img, reward, end_episode, info = env.step(action_index['NOOP'])
+            img = preprocess(img)
+            state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
+        state_indices = [replay_buffer.insert_image(img) for i in range(4)]
+
         #Each episode run a fixed number of steps
         for _ in range(100000):
             step += 1
@@ -181,28 +182,12 @@ def train(args):
                         agent.hard_update()
             ##----------------------- LOGGING ----------------------------------------------##
             if step % args.eval_step == 0:
-                time_elapsed = timer() - start_time
-                speed = int(args.eval_step / (timer() - last_eval_time))
-                last_eval_time = timer()
-                time_left = (args.step - step) / speed
-                day, hour, minute = calc_date_time(time_elapsed)
-                day_left, hour_left, minute_left = calc_date_time(time_left)
                 eval_reward = evaluation(args, agent)
 
-                pstr = [
-                        args.save_dir,
-                        "{:2d}%, speed:{} it/s, elapsed time:{}d-{}h-{}m, time left: {}d-{}h-{}m"
-                        .format(int(step / args.step * 100),
-                                speed, day, hour, minute,
-                                day_left, hour_left, minute_left),
-                        "evaluation reward: {}".format(eval_reward)
-                        ]
-                L = max([len(e) for e in pstr])
-                print('|'+'=' * L+'|')
-                for e in pstr:
-                    print('|' + e + ' ' * (L - len(e)) + '|')
-                print('|'+'=' * L+'|')
-                print('\n')
+                print_util.eval_print(step, [
+                    args.save_dir,
+                    "evaluation reward: {}".format(eval_reward)
+                    ])
 
 
                 logs.eval_reward.append((step, eval_reward))
