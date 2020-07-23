@@ -16,6 +16,7 @@ from ..plot_result import log_plot
 from os.path import join, isdir
 from .atari.ddqn import DDQN
 from .atari.replay_buffer import RingBuffer
+from timeit import default_timer as timer
 import numpy.random as npr
 import gym
 import argparse
@@ -42,14 +43,43 @@ def preprocess(img):
             #.crop((0, 18, 84, 102))
     return np.asarray(im)
 
-def evaluation(args, agent):
+def init_env(env, noop_action_index, agent, args):
+    img = env.reset()
+    img = preprocess(img)
+    state = np.stack([img] * args.frame_skip, axis=2)
+         
+    ##----------------------- ----------------------------------------------##
+    #Run a maximum NOOP to create the randomness of the game,
+    #The agent may overfit to a fix sequence if the game dont have any randomness.
+    noop_max = npr.randint(args.noop_max)
+    for _ in range(noop_max):
+        img, reward, end_episode, info = env.step(noop_action_index)
+        img = preprocess(img)
+        state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
+    return state
+
+def evaluation(args, agent, noop_action_index):
+    
     ep_reward = 0
     env = gym.make(args.env)
 
-    img = env.reset()
-    img = preprocess(img)
-    state = np.stack([img] * 4, axis=2)
-    for _ in range(100000):
+    score = []
+    frame = 0
+    terminal = True
+    episode_start_time = timer()
+    tracking_time = []
+    while frame < args.validation_frame:
+        frame += 4
+        if terminal:
+            episode_time = timer() - episode_start_time 
+            episode_start_time = timer()
+            state = init_env(env, noop_action_index, agent, args)
+            score.append(ep_reward)
+            img = env.reset()
+            img = preprocess(img)
+            state = np.stack([img] * args.frame_skip, axis=2)
+            tracking_time.append(episode_time)
+            ep_reward = 0
         if npr.uniform() < 0.05:
             action = env.action_space.sample()
         else:
@@ -58,9 +88,7 @@ def evaluation(args, agent):
         img = preprocess(img)
         state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
         ep_reward += reward
-        if terminal:
-            return ep_reward
-    print("Evaluate over 100k frames")
+    return {'avg_score': np.mean(score), 'avg_time': np.mean(tracking_time)}
 
 def record(args):
     env = gym.make(args.env)
@@ -90,6 +118,7 @@ def record(args):
     env.close()
 
 
+
 def train(args):
     args.log_path = incremental_path(join(args.log_dir, '*.json'))
     logs = Logs(args.log_path)
@@ -106,10 +135,10 @@ def train(args):
     agent = DDQN(args)
 
     agent.take_action = EpsilonGreedy(
-                args.max_epsilon,
-                args.min_epsilon,
-                args.step, 
-                args.fraction, 
+                args.init_exploration,
+                args.final_exploration,
+                args.training_frame, 
+                args.final_exploration_frame, 
                 lambda :[env.action_space.sample()],
                 lambda s: agent._take_action(s)
             ).action
@@ -120,96 +149,91 @@ def train(args):
     episode = 0
 
     train_info = None
-
-    save_model_step = args.step // args.n_model_save
-    save_log_step = args.step // args.n_log_save
+    model_path = None
 
     last_ep_reward = 0
 
-    print_util = PrintUtil(args.eval_step, args.step)
+    print_util = PrintUtil(args.frame_each_epoch, args.training_frame)
 
-    step = 0
+    frame = 0
     action_index = {key: i for i, key in enumerate(env.unwrapped.get_action_meanings())}
-    while step < args.step:
-        img = env.reset()
-        current_lives = env.unwrapped.ale.lives()
-        img = preprocess(img)
-        #state_indices = [replay_buffer.insert_image(img) for _ in range(4)]
-        state_indices = []
-        state = np.stack([img] * 4, axis=2)
-             
-        #Run a maximum NOOP to create the randomness of the game,
-        #The agent may overfit to a fix sequence if the game dont have any randomness.
-        noop_max = npr.randint(30)
-        for _ in range(noop_max):
-            img, reward, end_episode, info = env.step(action_index['NOOP'])
-            img = preprocess(img)
-            state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
-        state_indices = [replay_buffer.insert_image(img) for i in range(4)]
+    noop_action_index = action_index['NOOP']
+
+    end_episode = True
+    ep_reward = 0
+    last_eval_frame = 0
+    train_info = None
+    update_step = 0
+    while frame < args.training_frame:
+        frame += args.frame_skip 
+        ##-----------------------  TERMINAL SECTION ----------------------------##
+        if end_episode:
+            current_lives = env.unwrapped.ale.lives()
+            state = init_env(env, noop_action_index, agent, args)
+            ##______________________________________________________________________##
+            state_list = [state[:,:,i] for i in range(args.frame_skip)]
+            last_ep_reward = ep_reward
+            episode += 1
+            ep_reward = 0
+        ##----------------------- SAVE MODEL---------------------------##
+
 
         #Each episode run a fixed number of steps
-        for _ in range(100000):
-            step += 1
-            action, action_info = agent.take_action(state[np.newaxis,...], step)
-            img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
-            # We set terminal flag is true every time agent loses life
-            is_live_loss = info['ale.lives'] < current_lives
-            current_lives = info['ale.lives']
-            terminal = end_episode or is_live_loss
-
-            reward = np.clip(reward, -1, 1)
-            reward = float(reward)
-            ep_reward += reward
-
-            # Stacking the reward to create new next state
-            img = preprocess(img)
-            state_indices.append(replay_buffer.insert_image(img))
-            state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
-            replay_buffer.add(state_indices, action, reward, float(terminal))
-            state_indices = state_indices[1:]
-
-            train_info = None
-            if step > args.start:
-                if step % args.train_step == 0:
-                    batch = replay_buffer.get_batch()
-                    train_info = agent.train(batch)
-                    pass
-
-                if args.soft_update:
-                    agent.soft_update()
-                else:
-                    if step % args.update == 0:
-                        agent.hard_update()
-            ##----------------------- LOGGING ----------------------------------------------##
-            if step % args.eval_step == 0:
-                eval_reward = evaluation(args, agent)
-
-                print_util.eval_print(step, [
-                    args.save_dir,
-                    "evaluation reward: {}".format(eval_reward)
-                    ])
-
-
-                logs.eval_reward.append((step, eval_reward))
-                if train_info:
-                    logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
-                    logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
-                logs.train_reward.append((step, last_ep_reward))
-                logs.save()
-
-            ##-----------------------  TERMINAL SECTION ----------------------------##
-            if end_episode:
-                last_ep_reward = ep_reward
-                episode += 1
-                ep_reward = 0
-                break
-            ##----------------------- SAVE MODEL---------------------------##
-            if step % save_model_step == 0:
-                agent.save_model(join(args.model_dir, '{}.ckpt'.format(step // save_model_step)))
-                #log_plot(logs.log_path)
+        if frame - last_eval_frame > args.frame_each_epoch:
+            ##-------------------- EVALUATION SECTION --------------------------------------------##
+            last_eval_frame = frame
+            eval_info = evaluation(args, agent, noop_action_index)
+            eval_reward = eval_info['avg_score']
+            eval_time_per_episode = eval_info['avg_time']
+            print_util.epoch_print(frame, [
+                args.save_dir,
+                "Evaluation reward: {}, Second/episode: {}".format(eval_reward, eval_time_per_episode),
+                "Model path: {}".format(model_path)
+                ])
+            logs.eval_reward.append((frame, eval_reward))
+            if train_info:
+                logs.loss.append((frame, round(float(train_info['loss'].numpy()), 3)))
+                logs.Q.append((frame, round(float(train_info['Q'].numpy()), 3)))
+            logs.train_reward.append((frame, last_ep_reward))
+            logs.save()
             ##______________________________________________________________________##
+        if frame > args.replay_start_frame:
+            batch = replay_buffer.get_batch()
+            train_info = agent.train(batch)
 
-    agent.save_model(join(args.model_dir, '{}.ckpt'.format(step // save_model_step)))
+            if args.soft_update:
+                agent.soft_update()
+            else:
+                if update_step % args.update_step == 0:
+                    update_step += 1
+                    agent.hard_update()
+
+                    
+        action, action_info = agent.take_action(state[np.newaxis,...], frame)
+        img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
+        # We set terminal flag is true every time agent loses life
+        is_live_loss = info['ale.lives'] < current_lives
+        current_lives = info['ale.lives']
+        terminal = end_episode or is_live_loss
+
+        reward = np.clip(reward, -1, 1)
+        reward = float(reward)
+        ep_reward += reward
+
+        # Stacking the reward to create new next state
+        img = preprocess(img)
+        state_list.append(img)
+        state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
+        replay_buffer.add(state_list, action, reward, float(terminal))
+        state_list = state_list[1:]
+
+
+        if frame % 1000000 == 0:
+            model_path = join(args.model_dir, '{}.ckpt'.format(frame))
+            agent.save_model(model_path)
+            #log_plot(logs.log_path)
+
+    agent.save_model(join(args.model_dir, '{}.ckpt'.format(frame)))
     logs.save()
 
 
@@ -222,18 +246,19 @@ if __name__ == '__main__':
     parser.add_argument("--record-path")
     parser.add_argument("--load-model-path")
     parser.add_argument("--env", default='CartPole-v0')
-    parser.add_argument("--n-model-save", type=int, default=1000)
-    parser.add_argument("--n-log-save", type=int, default=1000000)
 
-    parser.add_argument("--step", type=int, default=10000)
-    parser.add_argument("--update", type=int, default=100)
-    parser.add_argument("--buffer", type=int, default=10000)
+    parser.add_argument("--buffer", type=int, default=1000000)
     parser.add_argument("--batch", type=int, default=32)
-    parser.add_argument("--n-run", type=int, default=10)
+    parser.add_argument("--n-run", type=int, default=5)
     parser.add_argument("--discount", type=float, default=0.99)
-    parser.add_argument("--train-step", type=int, default=1)
-    parser.add_argument("--eval-step", type=int, default=50000)
-    parser.add_argument("--start", type=int, default=1000)
+
+    parser.add_argument("--update-step", type=int, default=10000)
+    parser.add_argument("--training-frame", type=int, default=50000000)
+    parser.add_argument("--frame-each-epoch", type=int, default=250000)
+    parser.add_argument("--validation-frame", type=int, default=135000)
+    parser.add_argument("--replay-start-frame", type=int, default=50000)
+    parser.add_argument("--frame-skip", type=int, default=4)
+    parser.add_argument("--noop-max", type=int, default=30)
 
     parser.add_argument("--fixed-policy", action='store_true')
 
@@ -251,9 +276,9 @@ if __name__ == '__main__':
     parser.add_argument("--adam", action='store_true')
     parser.add_argument("--sgd", action='store_true')
 
-    parser.add_argument("--max-epsilon", type=float, default=0.8)
-    parser.add_argument("--min-epsilon", type=float, default=0.05)
-    parser.add_argument("--fraction", type=float, default=0.3)
+    parser.add_argument("--init-exploration", type=float, default=1.)
+    parser.add_argument("--final-exploration", type=float, default=0.1)
+    parser.add_argument("--final-exploration-frame", type=int, default=1000000)
 
     parser.add_argument("--dqn", action='store_true')
     parser.add_argument("--ddqn", action='store_true')
@@ -262,7 +287,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-         
 
     if args.record:
         record(args)
