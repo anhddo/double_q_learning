@@ -187,7 +187,7 @@ def train(args):
             eval_time_per_episode = eval_info['avg_time']
             print_util.epoch_print(frame, [
                 args.save_dir,
-                "Evaluation reward: {}, Second/episode: {}".format(eval_reward, eval_time_per_episode),
+                "Average evaluation reward: {}, Second/episode: {}".format(eval_reward, eval_time_per_episode),
                 "Model path: {}".format(model_path)
                 ])
             logs.eval_reward.append((frame, eval_reward))
