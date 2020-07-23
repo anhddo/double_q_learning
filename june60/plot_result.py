@@ -21,22 +21,29 @@ def log_plot(args):
         plt.subplot(311)
         plt.grid()
         x, y = zip(*logs['train_reward'])
+        x = np.array(x) * 4
         plt.plot(x, y, label='train reward')
         x, y = zip(*logs['eval_reward'])
+        x = np.array(x) * 4
         plt.plot(x, y, label='eval reward')
+        plt.xlabel('frames')
         plt.legend()
 
         plt.subplot(312)
         plt.grid()
         x, y = zip(*logs['loss'])
+        x = np.array(x) * 4
         plt.plot(x, y, label='loss')
+        plt.xlabel('frames')
         plt.legend()
 
         plt.subplot(313)
         plt.grid()
         plt.grid()
         x, y = zip(*logs['Q'])
+        x = np.array(x) * 4
         plt.plot(x, y, label='Q value')
+        plt.xlabel('frames')
         plt.legend()
         plt.savefig(join(dir_path, '{}.pdf'.format(index)))
 
