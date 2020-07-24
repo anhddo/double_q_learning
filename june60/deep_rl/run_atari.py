@@ -66,18 +66,16 @@ def evaluation(args, agent, noop_action_index):
     score = []
     frame = 0
     terminal = True
+    start_time = timer()
     episode_start_time = timer()
     tracking_time = []
     while frame < args.validation_frame:
-        frame += 4
+        frame += args.frame_skip
         if terminal:
             episode_time = timer() - episode_start_time 
             episode_start_time = timer()
             state = init_env(env, noop_action_index, agent, args)
             score.append(ep_reward)
-            img = env.reset()
-            img = preprocess(img)
-            state = np.stack([img] * args.frame_skip, axis=2)
             tracking_time.append(episode_time)
             ep_reward = 0
         if npr.uniform() < 0.05:
@@ -88,7 +86,14 @@ def evaluation(args, agent, noop_action_index):
         img = preprocess(img)
         state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
         ep_reward += reward
-    return {'avg_score': np.mean(score), 'avg_time': np.mean(tracking_time)}
+    eval_time = timer() - start_time
+    return {
+            'avg_score': np.mean(score),
+            'avg_time': np.mean(tracking_time),
+            'eval_time': eval_time
+            }
+
+
 
 def record(args):
     env = gym.make(args.env)
@@ -144,6 +149,7 @@ def train(args):
             ).action
 
     agent.load_model(args.load_model_path)
+    agent.hard_update()
     ep_reward = 0
     tracking = []
     episode = 0
@@ -153,7 +159,7 @@ def train(args):
 
     last_ep_reward = 0
 
-    print_util = PrintUtil(args.frame_each_epoch, args.training_frame)
+    print_util = PrintUtil(args)
 
     frame = 0
     action_index = {key: i for i, key in enumerate(env.unwrapped.get_action_meanings())}
@@ -166,6 +172,12 @@ def train(args):
     update_step = 0
     while frame < args.training_frame:
         frame += args.frame_skip 
+        ##----------------------- SAVE MODEL---------------------------##
+        if frame % 1000000 == 0:
+            model_path = join(args.model_dir, '{}.ckpt'.format(frame))
+            agent.save_model(model_path)
+            #log_plot(logs.log_path)
+        ##______________________________________________________________________##
         ##-----------------------  TERMINAL SECTION ----------------------------##
         if end_episode:
             current_lives = env.unwrapped.ale.lives()
@@ -175,10 +187,8 @@ def train(args):
             last_ep_reward = ep_reward
             episode += 1
             ep_reward = 0
-        ##----------------------- SAVE MODEL---------------------------##
 
 
-        #Each episode run a fixed number of steps
         if frame - last_eval_frame > args.frame_each_epoch:
             ##-------------------- EVALUATION SECTION --------------------------------------------##
             last_eval_frame = frame
@@ -186,9 +196,11 @@ def train(args):
             eval_reward = eval_info['avg_score']
             eval_time_per_episode = eval_info['avg_time']
             print_util.epoch_print(frame, [
+                "Eval time:{:.2f} min, Average evaluation reward: {:.2f}, Eval time: {:.2f} (s/episode)"\
+                        .format(eval_info['eval_time'] / 60, eval_reward, eval_time_per_episode),
                 args.save_dir,
-                "Average evaluation reward: {}, Second/episode: {}".format(eval_reward, eval_time_per_episode),
-                "Model path: {}".format(model_path)
+                "Model path: {}".format(model_path),
+                "Epsilon: {}".format(action_info['epsilon']),
                 ])
             logs.eval_reward.append((frame, eval_reward))
             if train_info:
@@ -204,11 +216,12 @@ def train(args):
             if args.soft_update:
                 agent.soft_update()
             else:
+                update_step += 1
                 if update_step % args.update_step == 0:
-                    update_step += 1
                     agent.hard_update()
 
                     
+        #Run an epoch
         action, action_info = agent.take_action(state[np.newaxis,...], frame)
         img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
         # We set terminal flag is true every time agent loses life
@@ -228,10 +241,6 @@ def train(args):
         state_list = state_list[1:]
 
 
-        if frame % 1000000 == 0:
-            model_path = join(args.model_dir, '{}.ckpt'.format(frame))
-            agent.save_model(model_path)
-            #log_plot(logs.log_path)
 
     agent.save_model(join(args.model_dir, '{}.ckpt'.format(frame)))
     logs.save()

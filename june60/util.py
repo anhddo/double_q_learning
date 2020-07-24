@@ -45,11 +45,11 @@ class Logs(object):
             json.dump(self.__dict__, f)
 
 class PrintUtil():
-    def __init__(self, frame_each_epoch, training_frame):
+    def __init__(self, args):
         self.start_time = timer()
         self.last_eval_time = self.start_time
-        self.frame_each_epoch = frame_each_epoch
-        self.training_frame = training_frame
+        self.it_each_epoch = args.frame_each_epoch // args.frame_skip
+        self.training_frame = args.training_frame
 
 
     def calc_date_time(self, second):
@@ -58,20 +58,25 @@ class PrintUtil():
         minute = int((second - day * 24 * 3600 - hour * 3600) / 60)
         return day, hour, minute
 
-    def epoch_print(self, step, pstr):
+    def epoch_print(self, frame, pstr):
         time_elapsed = timer() - self.start_time
-        speed = int(self.frame_each_epoch / (timer() - self.last_eval_time))
-        self.last_eval_time = timer()
-        time_left = (self.training_frame - step) / speed
+        speed = int(self.it_each_epoch / (timer() - self.last_eval_time))
+        time_left = (self.training_frame - frame) / speed
         day, hour, minute = self.calc_date_time(time_elapsed)
         day_left, hour_left, minute_left = self.calc_date_time(time_left)
 
         pstr = [
-                "{:2d}%, Speed:{} it/s, Epoch time: {:.2f}min" 
-                .format(int(step / self.training_frame * 100), speed, time_elapsed / 60),\
+                "Frame: {:.2f}e6/{}e6,{:2d}%, Speed:{} it/s, Epoch time: {:.2f}min" 
+                .format(frame / 1e6,\
+                        self.training_frame // 1000000, \
+                        int(frame / self.training_frame * 100), \
+                        speed, \
+                        (timer() - self.last_eval_time) / 60),\
                 "Elapsed time:{}d-{}h-{}m, Time left: {}d-{}h-{}m"\
                 .format(day, hour, minute, day_left, hour_left, minute_left),
                 ] + pstr
+
+        self.last_eval_time = timer()
 
         L = max([len(e) for e in pstr])
         print('|'+'=' * L+'|')
