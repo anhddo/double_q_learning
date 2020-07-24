@@ -170,6 +170,7 @@ def train(args):
     last_eval_frame = 0
     train_info = None
     update_step = 0
+    best_score = -1e6
     while frame < args.training_frame:
         frame += args.frame_skip 
         ##----------------------- SAVE MODEL---------------------------##
@@ -195,12 +196,14 @@ def train(args):
             eval_info = evaluation(args, agent, noop_action_index)
             eval_reward = eval_info['avg_score']
             eval_time_per_episode = eval_info['avg_time']
+            best_score = max(best_score, eval_reward)
             print_util.epoch_print(frame, [
                 "Eval time:{:.2f} min, Average evaluation reward: {:.2f}, Eval time: {:.2f} (s/episode)"\
                         .format(eval_info['eval_time'] / 60, eval_reward, eval_time_per_episode),
+                "Epsilon: {}".format(action_info['epsilon']),
+                "Best score: {}".format(best_score),
                 args.save_dir,
                 "Model path: {}".format(model_path),
-                "Epsilon: {}".format(action_info['epsilon']),
                 ])
             logs.eval_reward.append((frame, eval_reward))
             if train_info:

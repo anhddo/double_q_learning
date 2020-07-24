@@ -66,7 +66,7 @@ class PrintUtil():
         day_left, hour_left, minute_left = self.calc_date_time(time_left)
 
         pstr = [
-                "Frame: {:.2f}e6/{}e6,{:2d}%, Speed:{} it/s, Epoch time: {:.2f}min" 
+                "{:.2f}e6/{}e6 Frame, {:2d}%, Speed:{} it/s, Epoch time: {:.2f}min" 
                 .format(frame / 1e6,\
                         self.training_frame // 1000000, \
                         int(frame / self.training_frame * 100), \
