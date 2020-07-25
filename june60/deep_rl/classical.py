@@ -200,8 +200,7 @@ def train(args):
     ep_reward = 0
     tracking = []
     episode = 0
-    import pdb; pdb.set_trace();
-    print_util = PrintUtil(args)
+    print_util = PrintUtil(args.epoch_step, args.step)
 
     train_info = None
     for step in trange(args.step):
@@ -247,6 +246,7 @@ if __name__ == '__main__':
     parser.add_argument("--env", default='CartPole-v0')
 
     parser.add_argument("--step", type=int, default=10000)
+    parser.add_argument("--epoch-step", type=int, default=1000)
     parser.add_argument("--update", type=int, default=100)
     parser.add_argument("--buffer", type=int, default=10000)
     parser.add_argument("--batch", type=int, default=32)

@@ -45,11 +45,11 @@ class Logs(object):
             json.dump(self.__dict__, f)
 
 class PrintUtil():
-    def __init__(self, args):
+    def __init__(self, iter_each_epoch, total_step):
         self.start_time = timer()
         self.last_eval_time = self.start_time
-        self.it_each_epoch = args.frame_each_epoch // args.frame_skip
-        self.training_frame = args.training_frame
+        self.it_each_epoch = iter_each_epoch
+        self.total_step = total_step
 
 
     def calc_date_time(self, second):
@@ -61,15 +61,15 @@ class PrintUtil():
     def epoch_print(self, frame, pstr):
         time_elapsed = timer() - self.start_time
         speed = int(self.it_each_epoch / (timer() - self.last_eval_time))
-        time_left = (self.training_frame - frame) / speed
+        time_left = (self.total_step - frame) / speed
         day, hour, minute = self.calc_date_time(time_elapsed)
         day_left, hour_left, minute_left = self.calc_date_time(time_left)
 
         pstr = [
-                "{:.2f}e6/{}e6 Frame, {:2d}%, Speed:{} it/s, Epoch time: {:.2f}min" 
+                "{:.2f}e6/{}e6 steps, {:2d}%, Speed:{} it/s, Epoch time: {:.2f}min" 
                 .format(frame / 1e6,\
-                        self.training_frame // 1000000, \
-                        int(frame / self.training_frame * 100), \
+                        self.total_step // 1000000, \
+                        int(frame / self.total_step * 100), \
                         speed, \
                         (timer() - self.last_eval_time) / 60),\
                 "Elapsed time:{}d-{}h-{}m, Time left: {}d-{}h-{}m"\

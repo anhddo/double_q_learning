@@ -46,12 +46,12 @@ def preprocess(img):
 def init_env(env, noop_action_index, agent, args):
     img = env.reset()
     img = preprocess(img)
-    #state = np.stack([img] * args.frame_skip, axis=2)
+    state = np.stack([img] * args.frame_skip, axis=2)
          
     ##----------------------- ----------------------------------------------##
     #Run a maximum NOOP to create the randomness of the game,
     #The agent may overfit to a fix sequence if the game dont have any randomness.
-    noop_max = npr.randint(args.noop_max)
+    noop_max = npr.randint(args.noop_max) + 4
     for _ in range(noop_max):
         img, reward, end_episode, info = env.step(noop_action_index)
         img = preprocess(img)
@@ -231,7 +231,8 @@ def train(args):
         # We set terminal flag is true every time agent loses life
         is_live_loss = info['ale.lives'] < current_lives
         current_lives = info['ale.lives']
-        terminal = end_episode or is_live_loss
+        #terminal = end_episode or is_live_loss
+        end_episode = end_episode or is_live_loss
 
         reward = np.clip(reward, -1, 1)
         reward = float(reward)
@@ -241,10 +242,10 @@ def train(args):
         img = preprocess(img)
         state_list.append(img)
         state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
-        replay_buffer.add(state_list, action, reward, float(terminal))
+        replay_buffer.add(state_list, action, reward, float(end_episode))
+
+       # TODO: 
         state_list = state_list[1:]
-
-
 
     agent.save_model(join(args.model_dir, '{}.ckpt'.format(frame)))
     logs.save()

@@ -55,8 +55,6 @@ class DDQN(object):
         elif args.mse:
             self.loss_func = losses.MeanSquaredError()
 
-        #self.train_net(tf.random.uniform(shape=[1, 84, 84, 4], dtype=TF_TYPE))
-        #self.fixed_net(tf.random.uniform(shape=[1, 84, 84, 4], dtype=TF_TYPE))
         self.train_net(tf.random.uniform(shape=[1, 84, 84, 4]))
         self.fixed_net(tf.random.uniform(shape=[1, 84, 84, 4]))
         self.hard_update()
@@ -118,10 +116,10 @@ class DDQN(object):
             #tf.debugging.assert_equal(next_action.shape, (self.batch_size, 1))
             #tf.debugging.assert_equal(V_next.shape, (self.batch_size, 1))
             ##______________________________________________________________________##
-
-            loss = tf.clip_by_value(self.loss_func(Q, Q_target), -1, 1)
+            #loss = tf.clip_by_value(self.loss_func(Q, Q_target), -1, 1)
+            loss = self.loss_func(Q, Q_target)
         grad = tape.gradient(loss, self.train_net.trainable_variables)
-        #grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
+        grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
         self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
         return {
                 'loss': loss,
