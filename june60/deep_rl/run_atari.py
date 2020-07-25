@@ -265,7 +265,7 @@ if __name__ == '__main__':
     parser.add_argument("--discount", type=float, default=0.99)
 
     parser.add_argument("--update-step", type=int, default=10000)
-    parser.add_argument("--training-frame", type=int, default=50000000)
+    parser.add_argument("--training-frame", type=int, default=200000000)
     parser.add_argument("--frame-each-epoch", type=int, default=250000)
     parser.add_argument("--validation-frame", type=int, default=135000)
     parser.add_argument("--replay-start-frame", type=int, default=50000)
@@ -283,7 +283,7 @@ if __name__ == '__main__':
     parser.add_argument("--huber", action='store_true')
     parser.add_argument("--mse", action='store_true')
 
-    parser.add_argument("--lr", type=float, default=0.0001)
+    parser.add_argument("--lr", type=float, default=0.00025)
     parser.add_argument("--rms", action='store_true')
     parser.add_argument("--adam", action='store_true')
     parser.add_argument("--sgd", action='store_true')

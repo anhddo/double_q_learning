@@ -30,14 +30,20 @@ TF_TYPE = tf.float32
 
 class RingBuffer(object):
     def __init__(self, N):
-        self.buffer = deque(maxlen=N)
+        #self.buffer = deque(maxlen=N)
+        self.buffer = [None] * N
+        self.N = N
+        self.last_index = -1
+        self.index = -1
 
     def add(self, sample):
+        self.index = (self.index + 1) % self.N
+        self.last_index = min(self.last_index + 1, self.N)
         self.buffer.append(sample)
 
     #@tf.function
     def get_batch(self, batch_size):
-        select_index = npr.choice(len(self.buffer), batch_size)
+        select_index = npr.choice(len(self.last_index), batch_size)
         batch = [self.buffer[i] for i in select_index]
         return batch
 
@@ -272,7 +278,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--max-epsilon", type=float, default=0.8)
     parser.add_argument("--min-epsilon", type=float, default=0.05)
-    parser.add_argument("--fraction", type=float, default=0.3)
+    parser.add_argument("--final-exploration-step", type=int, default=10000)
 
     parser.add_argument("--dqn", action='store_true')
     parser.add_argument("--ddqn", action='store_true')
