@@ -46,7 +46,7 @@ def preprocess(img):
 def init_env(env, noop_action_index, agent, args):
     img = env.reset()
     img = preprocess(img)
-    state = np.stack([img] * args.frame_skip, axis=2)
+    #state = np.stack([img] * args.frame_skip, axis=2)
          
     ##----------------------- ----------------------------------------------##
     #Run a maximum NOOP to create the randomness of the game,
@@ -185,7 +185,7 @@ def train(args):
             current_lives = env.unwrapped.ale.lives()
             state = init_env(env, noop_action_index, agent, args)
             ##______________________________________________________________________##
-            state_list = [state[:,:,i] for i in range(args.frame_skip)]
+            state_list = [state[:, :, i] for i in range(args.frame_skip)]
             last_ep_reward = ep_reward
             episode += 1
             ep_reward = 0
@@ -195,18 +195,18 @@ def train(args):
             ##-------------------- EVALUATION SECTION --------------------------------------------##
             last_eval_frame = frame
             eval_info = evaluation(args, agent, noop_action_index)
-            eval_reward = eval_info['avg_score']
+            avg_score = eval_info['avg_score']
             eval_time_per_episode = eval_info['avg_time']
-            best_score = max(best_score, eval_reward)
+            best_score = max(best_score, avg_score)
             print_util.epoch_print(frame, [
-                "Eval time:{:.2f} min, Average evaluation reward: {:.2f}, Eval time: {:.2f} (s/episode)"\
-                        .format(eval_info['eval_time'] / 60, eval_reward, eval_time_per_episode),
+                "Avg eval score: {:.2f}, total: {:.2f} min,  {:.2f} (s/episode)"\
+                        .format(avg_score, eval_info['eval_time'] / 60, eval_time_per_episode),
                         "Epsilon: {:.2f}".format(action_info['epsilon']), 
                         "Best score: {:.2f}".format(best_score),
                         args.save_dir,
                         "Model path: {}".format(model_path),
                 ])
-            logs.eval_reward.append((frame, eval_reward))
+            logs.eval_reward.append((frame, avg_score))
             if train_info:
                 logs.loss.append((frame, round(float(train_info['loss'].numpy()), 3)))
                 logs.Q.append((frame, round(float(train_info['Q'].numpy()), 3)))
