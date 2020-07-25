@@ -63,20 +63,22 @@ def evaluation(args, agent, noop_action_index):
     ep_reward = 0
     env = gym.make(args.env)
 
-    score = []
+    total_score = 0
     frame = 0
     terminal = True
     start_time = timer()
     episode_start_time = timer()
-    tracking_time = []
+    total_time = 0
+    n_episode = 0
     while frame < args.validation_frame:
         frame += args.frame_skip
         if terminal:
             episode_time = timer() - episode_start_time 
             episode_start_time = timer()
             state = init_env(env, noop_action_index, agent, args)
-            score.append(ep_reward)
-            tracking_time.append(episode_time)
+            total_score += ep_reward
+            total_time += episode_time
+            n_episode += 1
             ep_reward = 0
         if npr.uniform() < 0.05:
             action = env.action_space.sample()
@@ -86,11 +88,10 @@ def evaluation(args, agent, noop_action_index):
         img = preprocess(img)
         state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
         ep_reward += reward
-    eval_time = timer() - start_time
     return {
-            'avg_score': np.mean(score),
-            'avg_time': np.mean(tracking_time),
-            'eval_time': eval_time
+            'avg_score': total_score / n_episode,
+            'avg_time': total_time / n_episode,
+            'eval_time': timer() - start_time
             }
 
 
@@ -200,10 +201,10 @@ def train(args):
             print_util.epoch_print(frame, [
                 "Eval time:{:.2f} min, Average evaluation reward: {:.2f}, Eval time: {:.2f} (s/episode)"\
                         .format(eval_info['eval_time'] / 60, eval_reward, eval_time_per_episode),
-                "Epsilon: {}".format(action_info['epsilon']),
-                "Best score: {}".format(best_score),
-                args.save_dir,
-                "Model path: {}".format(model_path),
+                        "Epsilon: {:.2f}".format(action_info['epsilon']), 
+                        "Best score: {:.2f}".format(best_score),
+                        args.save_dir,
+                        "Model path: {}".format(model_path),
                 ])
             logs.eval_reward.append((frame, eval_reward))
             if train_info:
