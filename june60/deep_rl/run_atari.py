@@ -39,7 +39,7 @@ allow_gpu_growth()
 def preprocess(img):
     im = Image.fromarray(img)\
             .convert("L")\
-            .resize((84, 84), Image.NEAREST)
+            .resize((84, 84), Image.BILINEAR)
             #.crop((0, 18, 84, 102))
     return np.asarray(im)
 
@@ -244,7 +244,6 @@ def train(args):
         state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
         replay_buffer.add(state_list, action, reward, float(end_episode))
 
-       # TODO: 
         state_list = state_list[1:]
 
     agent.save_model(join(args.model_dir, '{}.ckpt'.format(frame)))
