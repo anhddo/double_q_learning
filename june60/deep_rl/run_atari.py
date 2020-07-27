@@ -160,7 +160,7 @@ def train(args):
 
     last_ep_reward = 0
 
-    print_util = PrintUtil(args)
+    print_util = PrintUtil(args.frame_each_epoch, args.training_frame)
 
     frame = 0
     action_index = {key: i for i, key in enumerate(env.unwrapped.get_action_meanings())}
