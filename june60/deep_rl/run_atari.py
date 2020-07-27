@@ -85,6 +85,7 @@ def evaluation(args, agent, noop_action_index):
         img = preprocess(img)
         state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
         ep_reward += reward
+    n_episode = max(n_episode)
     return {
             'avg_score': total_score / max(1, n_episode),
             'avg_time': total_time / n_episode,
@@ -172,12 +173,12 @@ def train(args):
         if end_episode:
             current_lives = env.unwrapped.ale.lives()
             state = init_env(env, noop_action_index, agent, args)
-            ##______________________________________________________________________##
             state_list = [state[:, :, i] for i in range(args.frame_skip)]
             last_ep_reward = ep_reward
             episode += 1
             ep_reward = 0
 
+        ##______________________________________________________________________##
 
         if step > args.learn_start and step % args.epoch_step == 0:
             ##-------------------- EVALUATION SECTION ----------------------------------##
