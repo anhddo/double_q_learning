@@ -3,6 +3,7 @@ DIRPATH=${HOME}/tmp/$1/$2/logs
 JSON=${DIRPATH}/1.json
 while :
 do
+    echo $1 $2
     if [[ -e ${JSON} ]]; then
         python -m june60.plot_result --log-path ${JSON} \
             --width 10 --height 10 
