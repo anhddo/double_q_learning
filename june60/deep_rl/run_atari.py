@@ -40,7 +40,6 @@ def preprocess(img):
     im = Image.fromarray(img)\
             .convert("L")\
             .resize((84, 84), Image.BILINEAR)
-            #.crop((0, 18, 84, 102))
     return np.asarray(im)
 
 def init_env(env, noop_action_index, agent, args):
@@ -51,7 +50,7 @@ def init_env(env, noop_action_index, agent, args):
     ##----------------------- ----------------------------------------------##
     #Run a maximum NOOP to create the randomness of the game,
     #The agent may overfit to a fix sequence if the game dont have any randomness.
-    noop_max = npr.randint(args.noop_max) + 4
+    noop_max = npr.randint(args.random_start)
     for _ in range(noop_max):
         img, reward, end_episode, info = env.step(noop_action_index)
         img = preprocess(img)
@@ -64,14 +63,12 @@ def evaluation(args, agent, noop_action_index):
     env = gym.make(args.env)
 
     total_score = 0
-    frame = 0
     terminal = True
     start_time = timer()
     episode_start_time = timer()
     total_time = 0
     n_episode = 0
-    while frame < args.validation_frame:
-        frame += args.frame_skip
+    for step in range(args.eval_step):
         if terminal:
             episode_time = timer() - episode_start_time 
             episode_start_time = timer()
@@ -89,7 +86,7 @@ def evaluation(args, agent, noop_action_index):
         state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
         ep_reward += reward
     return {
-            'avg_score': total_score / n_episode,
+            'avg_score': total_score / max(1, n_episode),
             'avg_time': total_time / n_episode,
             'eval_time': timer() - start_time
             }
@@ -143,8 +140,8 @@ def train(args):
     agent.take_action = EpsilonGreedy(
                 args.init_exploration,
                 args.final_exploration,
-                args.training_frame, 
-                args.final_exploration_frame, 
+                args.training_step, 
+                args.final_exploration_step, 
                 lambda :[env.action_space.sample()],
                 lambda s: agent._take_action(s)
             ).action
@@ -160,26 +157,17 @@ def train(args):
 
     last_ep_reward = 0
 
-    print_util = PrintUtil(args.frame_each_epoch, args.training_frame)
+    print_util = PrintUtil(args.epoch_step, args.training_step)
 
-    frame = 0
     action_index = {key: i for i, key in enumerate(env.unwrapped.get_action_meanings())}
     noop_action_index = action_index['NOOP']
 
     end_episode = True
     ep_reward = 0
-    last_eval_frame = 0
     train_info = None
     update_step = 0
     best_score = -1e6
-    while frame < args.training_frame:
-        frame += args.frame_skip 
-        ##----------------------- SAVE MODEL---------------------------##
-        if frame % 1000000 == 0:
-            model_path = join(args.model_dir, '{}.ckpt'.format(frame))
-            agent.save_model(model_path)
-            #log_plot(logs.log_path)
-        ##______________________________________________________________________##
+    for step in range(args.training_step):
         ##-----------------------  TERMINAL SECTION ----------------------------##
         if end_episode:
             current_lives = env.unwrapped.ale.lives()
@@ -191,14 +179,19 @@ def train(args):
             ep_reward = 0
 
 
-        if frame - last_eval_frame > args.frame_each_epoch:
-            ##-------------------- EVALUATION SECTION --------------------------------------------##
-            last_eval_frame = frame
+        if step > args.learn_start and step % args.epoch_step == 0:
+            ##-------------------- EVALUATION SECTION ----------------------------------##
             eval_info = evaluation(args, agent, noop_action_index)
             avg_score = eval_info['avg_score']
             eval_time_per_episode = eval_info['avg_time']
+            ##----------------------- SAVE MODEL---------------------------##
+            if avg_score > best_score:
+                best_score = avg_score
+                model_path = join(args.model_dir, '{}.ckpt'.format(step))
+                agent.save_model(model_path)
             best_score = max(best_score, avg_score)
-            print_util.epoch_print(frame, [
+            ##----------------------- PRINT SECTION---------------------------##
+            print_util.epoch_print(step, [
                 "Avg eval score: {:.2f}, total: {:.2f} min,  {:.2f} (s/episode)"\
                         .format(avg_score, eval_info['eval_time'] / 60, eval_time_per_episode),
                         "Epsilon: {:.2f}".format(action_info['epsilon']), 
@@ -206,33 +199,31 @@ def train(args):
                         args.save_dir,
                         "Model path: {}".format(model_path),
                 ])
-            logs.eval_reward.append((frame, avg_score))
+            logs.eval_reward.append((step, avg_score))
             if train_info:
-                logs.loss.append((frame, round(float(train_info['loss'].numpy()), 3)))
-                logs.Q.append((frame, round(float(train_info['Q'].numpy()), 3)))
-            logs.train_reward.append((frame, last_ep_reward))
+                logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
+                logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
+            logs.train_reward.append((step, last_ep_reward))
             logs.save()
             ##______________________________________________________________________##
-        if frame > args.replay_start_frame:
-            batch = replay_buffer.get_batch()
-            train_info = agent.train(batch)
+        if step > args.learn_start:
+            if step % args.update_freq == 0:
+                batch = replay_buffer.get_batch()
+                train_info = agent.train(batch)
 
             if args.soft_update:
                 agent.soft_update()
             else:
-                update_step += 1
-                if update_step % args.update_step == 0:
+                if step % args.update_target == 0:
                     agent.hard_update()
 
                     
         #Run an epoch
-        action, action_info = agent.take_action(state[np.newaxis,...], frame)
+        action, action_info = agent.take_action(state[np.newaxis,...], step)
         img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
         # We set terminal flag is true every time agent loses life
-        is_live_loss = info['ale.lives'] < current_lives
+        end_episode = end_episode or info['ale.lives'] < current_lives
         current_lives = info['ale.lives']
-        #terminal = end_episode or is_live_loss
-        end_episode = end_episode or is_live_loss
 
         reward = np.clip(reward, -1, 1)
         reward = float(reward)
@@ -246,8 +237,6 @@ def train(args):
 
         state_list = state_list[1:]
 
-    agent.save_model(join(args.model_dir, '{}.ckpt'.format(frame)))
-    logs.save()
 
 
 
@@ -265,13 +254,14 @@ if __name__ == '__main__':
     parser.add_argument("--n-run", type=int, default=5)
     parser.add_argument("--discount", type=float, default=0.99)
 
-    parser.add_argument("--update-step", type=int, default=10000)
-    parser.add_argument("--training-frame", type=int, default=200000000)
-    parser.add_argument("--frame-each-epoch", type=int, default=250000)
-    parser.add_argument("--validation-frame", type=int, default=135000)
-    parser.add_argument("--replay-start-frame", type=int, default=50000)
+    parser.add_argument("--update-freq", type=int, default=4)
+    parser.add_argument("--update-target", type=int, default=10000)
+    parser.add_argument("--training-step", type=int, default=200000000)
+    parser.add_argument("--epoch-step", type=int, default=250000)
+    parser.add_argument("--eval-step", type=int, default=135000)
+    parser.add_argument("--learn-start", type=int, default=50000)
     parser.add_argument("--frame-skip", type=int, default=4)
-    parser.add_argument("--noop-max", type=int, default=30)
+    parser.add_argument("--random-start", type=int, default=30)
 
     parser.add_argument("--fixed-policy", action='store_true')
 
@@ -291,7 +281,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--init-exploration", type=float, default=1.)
     parser.add_argument("--final-exploration", type=float, default=0.1)
-    parser.add_argument("--final-exploration-frame", type=int, default=1000000)
+    parser.add_argument("--final-exploration-step", type=int, default=1000000)
 
     parser.add_argument("--dqn", action='store_true')
     parser.add_argument("--ddqn", action='store_true')
