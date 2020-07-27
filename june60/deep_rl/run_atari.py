@@ -14,7 +14,7 @@ from datetime import datetime
 from ..util import allow_gpu_growth, incremental_path, Logs, PrintUtil
 from ..plot_result import log_plot
 from os.path import join, isdir
-from .atari.ddqn import DDQN
+from .atari.ddqn_mask import DDQN
 from .atari.replay_buffer import RingBuffer
 from timeit import default_timer as timer
 import numpy.random as npr
@@ -220,8 +220,8 @@ def train(args):
 
                     
         #Run an epoch
-        if step < agrs.learn_start:
-            action = env.action_space.sample()
+        if step < args.learn_start:
+            action = [env.action_space.sample()]
         else:
             action, action_info = agent.take_action(state[np.newaxis,...], step)
         img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
