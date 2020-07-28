@@ -13,6 +13,7 @@ class DDQN(object):
     Double Q learning
     """
     def __init__(self, args):
+        self.debug = args.debug
         self.action_dim = args.action_dim
         self.discount = args.discount
         self.batch_size = args.batch
@@ -44,7 +45,11 @@ class DDQN(object):
 
 
         if args.rms:
-            self.optimizer = optimizers.RMSprop(learning_rate=args.lr, rho=0.95, epsilon=0.01)
+            self.optimizer = optimizers.RMSprop(
+                    learning_rate=args.lr,
+                    rho=0.95,
+                    momentum=0.95,
+                    epsilon=0.01)
         elif args.adam:
             self.optimizer = optimizers.Adam(learning_rate=args.lr)
         elif args.sgd:
@@ -115,15 +120,16 @@ class DDQN(object):
             V_next = tf.reduce_sum(Q_next, 1, keepdims=True)
             Q_target = reward + self.discount * tf.multiply(tf.stop_gradient(V_next), (1. - done))
             ##-----------------------CHECK TENSOR SHAPE-----------------------------##
-            tf.debugging.assert_equal(state.shape, (self.batch_size, 84, 84, 4))
-            tf.debugging.assert_equal(action.shape, (self.batch_size, 1))
-            tf.debugging.assert_equal(next_state.shape, (self.batch_size, 84, 84, 4))
-            tf.debugging.assert_equal(reward.shape, (self.batch_size, 1))
-            tf.debugging.assert_equal(done.shape, (self.batch_size, 1))
-            tf.debugging.assert_equal(next_action.shape, (self.batch_size))
-            tf.debugging.assert_equal(V_next.shape, (self.batch_size, 1))
-            tf.debugging.assert_equal(Q.shape, (self.batch_size, 1))
-            tf.debugging.assert_equal(Q_target.shape, (self.batch_size, 1))
+            if self.debug:
+                tf.debugging.assert_equal(state.shape, (self.batch_size, 84, 84, 4))
+                tf.debugging.assert_equal(action.shape, (self.batch_size, 1))
+                tf.debugging.assert_equal(next_state.shape, (self.batch_size, 84, 84, 4))
+                tf.debugging.assert_equal(reward.shape, (self.batch_size, 1))
+                tf.debugging.assert_equal(done.shape, (self.batch_size, 1))
+                tf.debugging.assert_equal(next_action.shape, (self.batch_size))
+                tf.debugging.assert_equal(V_next.shape, (self.batch_size, 1))
+                tf.debugging.assert_equal(Q.shape, (self.batch_size, 1))
+                tf.debugging.assert_equal(Q_target.shape, (self.batch_size, 1))
             ##______________________________________________________________________##
             #loss = tf.clip_by_value(self.loss_func(Q, Q_target), -1, 1)
             loss = self.loss_func(Q, Q_target)

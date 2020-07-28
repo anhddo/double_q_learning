@@ -27,7 +27,6 @@ import numpy as np
 allow_gpu_growth()
 
 #Sample = namedtuple('Sample', ('state', 'action', 'reward', 'next_state', 'done'))
-#tf.config.experimental_run_functions_eagerly(True)
 
 #tf.keras.backend.set_floatx('float64')
 #TF_TYPE = tf.float64
@@ -245,6 +244,7 @@ def train(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finite-horizon MDP")
+    parser.add_argument("--debug", action='store_true')
     parser.add_argument("--tmp-dir")
     parser.add_argument("--save-dir")
     parser.add_argument("--record", action='store_true')
@@ -294,6 +294,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 
+    if args.debug:
+        tf.config.experimental_run_functions_eagerly(True)
     if args.record:
         record(args)
     else:
