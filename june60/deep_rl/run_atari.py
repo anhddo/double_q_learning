@@ -9,7 +9,6 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import tensorflow as tf
 from ..algo import EpsilonGreedy
-from tqdm import trange, tqdm
 from datetime import datetime
 from ..util import allow_gpu_growth, incremental_path, Logs, PrintUtil
 from ..plot_result import log_plot
@@ -85,9 +84,9 @@ def evaluation(args, agent, noop_action_index):
         img = preprocess(img)
         state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
         ep_reward += reward
-    n_episode = max(n_episode)
+    n_episode = max(1, n_episode)
     return {
-            'avg_score': total_score / max(1, n_episode),
+            'avg_score': total_score / n_episode,
             'avg_time': total_time / n_episode,
             'eval_time': timer() - start_time
             }
