@@ -198,11 +198,11 @@ def train(args):
                         args.save_dir,
                         "Model path: {}".format(model_path),
                 ])
-            logs.eval_reward.append((step, avg_score))
+            logs.eval_reward.append((step, round(avg_score, 3)))
             if train_info:
                 logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
                 logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
-            logs.train_reward.append((step, last_ep_reward))
+            logs.train_reward.append((step, round(last_ep_reward, 3)))
             logs.save()
             ##______________________________________________________________________##
         if step > args.learn_start:
@@ -227,9 +227,9 @@ def train(args):
         end_episode = end_episode or info['ale.lives'] < current_lives
         current_lives = info['ale.lives']
 
+        ep_reward += reward
         reward = np.clip(reward, -1, 1)
         reward = float(reward)
-        ep_reward += reward
 
         # Stacking the reward to create new next state
         img = preprocess(img)
@@ -281,6 +281,7 @@ if __name__ == '__main__':
     parser.add_argument("--rms", action='store_true')
     parser.add_argument("--adam", action='store_true')
     parser.add_argument("--sgd", action='store_true')
+    parser.add_argument("--clip-grad", action='store_true')
 
     parser.add_argument("--init-exploration", type=float, default=1.)
     parser.add_argument("--final-exploration", type=float, default=0.1)

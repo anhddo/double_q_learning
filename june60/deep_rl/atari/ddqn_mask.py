@@ -14,6 +14,7 @@ class DDQN(object):
     """
     def __init__(self, args):
         self.debug = args.debug
+        self.clip_grad = args.clip_grad
         self.action_dim = args.action_dim
         self.discount = args.discount
         self.batch_size = args.batch
@@ -134,7 +135,8 @@ class DDQN(object):
             #loss = tf.clip_by_value(self.loss_func(Q, Q_target), -1, 1)
             loss = self.loss_func(Q, Q_target)
         grad = tape.gradient(loss, self.train_net.trainable_variables)
-        grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
+        if self.clip_grad:
+            grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
         self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
         return {
                 'loss': loss,

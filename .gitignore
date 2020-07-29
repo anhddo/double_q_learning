@@ -1,5 +1,6 @@
 *.swp
 tags
 tmp
+bash/june60
 __pycache__
 ovi/__pycache__
