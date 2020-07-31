@@ -161,7 +161,7 @@ class DDQN(object):
             V_next = tf.gather(Q_next, tf.reshape(next_action, shape=(-1, 1)), batch_dims=1)
             Q_target = reward + self.discount * tf.multiply(V_next, (1. - done))
             loss = self.loss_func(Q, Q_target)
-            loss = tf.clip_by_value(loss, -1., 1.)
+            #loss = tf.clip_by_value(loss, -1., 1.)
         grad = tape.gradient(loss, self.train_net.trainable_variables)
         #grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
         self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
@@ -171,18 +171,40 @@ class DDQN(object):
                 'Q_target': tf.reduce_max(Q_target)
                 }
 
+def evaluation(args, agent):
+    env = gym.make(args.env)
+
+    state = env.reset()
+    total_reward, ep_reward = 0, 0
+    n_episode = 0
+    for _ in range(args.eval_step):
+        if npr.uniform() < 0.05:
+            action = env.action_space.sample()
+        else:
+            state = state.astype(np.float32)
+            action = agent._take_action(state.reshape(1, -1))
+            action = tf.squeeze(action).numpy()
+        next_state, reward, done, _ = env.step(action)
+        ep_reward += reward
+        state = next_state
+        if done:
+            n_episode += 1
+            total_reward += ep_reward
+            ep_reward = 0
+            state = env.reset()
+    env.close()
+    return total_reward / n_episode
+
+     
+
 
 def train(args):
     logs = Logs(args.save_dir)
 
     env = gym.make(args.env)
 
-    state = env.reset()
-    state = state.astype(np.float32)
-
-
     replay_buffer = RingBuffer(args.buffer)
-    obs_dim = len(state)
+    obs_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
 
     args.obs_dim = obs_dim
@@ -203,8 +225,17 @@ def train(args):
     print_util = PrintUtil(args.epoch_step, args.step)
 
     train_info = None
-    for step in trange(args.step):
-        action, action_info = agent.take_action(state.reshape(-1, 1), step)
+    done = True
+    last_score = 0
+    best_eval_scoore = -1e6
+    for step in range(args.step):
+        if done:
+            state = env.reset()
+            episode += 1
+            last_score = ep_reward
+            ep_reward = 0
+        state = state.astype(np.float32)
+        action, action_info = agent.take_action(state.reshape(1, -1), step)
         action = tf.squeeze(action).numpy()
         next_state, reward, done, _ = env.step(action)
         next_state = next_state.astype(np.float32)
@@ -225,15 +256,20 @@ def train(args):
                     agent.hard_update()
 
         ##-----------------------  TERMINAL SECTION ----------------------------##
-        if done:
+
+        if step > args.epoch_step and step % args.epoch_step == 0:
             if train_info:
                 logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
                 logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
-            logs.eval_reward.append((step, ep_reward))
+                logs.train_reward.append((step, last_score))
+            eval_reward = evaluation(args, agent)
+            best_eval_score =max(best_eval_score, eval_reward)
+            logs.eval_reward.append((step, eval_reward))
+            print_util.epoch_print(step, [
+                "Best eval score: {:.2f}, Eval score:{:.2f}".format(best_eval_score, eval_reward)
+                ])
 
-            state = env.reset()
-            episode += 1
-            ep_reward = 0
+
 
     logs.save()
 
@@ -245,15 +281,16 @@ if __name__ == '__main__':
     parser.add_argument("--save-dir")
     parser.add_argument("--env", default='CartPole-v0')
 
-    parser.add_argument("--step", type=int, default=10000)
-    parser.add_argument("--epoch-step", type=int, default=1000)
-    parser.add_argument("--update", type=int, default=100)
-    parser.add_argument("--buffer", type=int, default=10000)
+    parser.add_argument("--step", type=int, default=1000000)
+    parser.add_argument("--epoch-step", type=int, default=25000)
+    parser.add_argument("--eval-step", type=int, default=2000)
+    parser.add_argument("--update", type=int, default=1000)
+    parser.add_argument("--buffer", type=int, default=100000)
     parser.add_argument("--batch", type=int, default=32)
     parser.add_argument("--n-run", type=int, default=10)
     parser.add_argument("--discount", type=float, default=0.99)
     parser.add_argument("--train-step", type=int, default=1)
-    parser.add_argument("--start", type=int, default=1000)
+    parser.add_argument("--start", type=int, default=10000)
 
     parser.add_argument("--fixed-policy", action='store_true')
 
@@ -266,14 +303,14 @@ if __name__ == '__main__':
     parser.add_argument("--huber", action='store_true')
     parser.add_argument("--mse", action='store_true')
 
-    parser.add_argument("--lr", type=float, default=0.0001)
+    parser.add_argument("--lr", type=float, default=0.00025)
     parser.add_argument("--rms", action='store_true')
     parser.add_argument("--adam", action='store_true')
     parser.add_argument("--sgd", action='store_true')
 
     parser.add_argument("--max-epsilon", type=float, default=1)
     parser.add_argument("--min-epsilon", type=float, default=0.1)
-    parser.add_argument("--final-exploration-step", type=int, default=10000)
+    parser.add_argument("--final-exploration-step", type=int, default=100000)
 
     parser.add_argument("--dqn", action='store_true')
     parser.add_argument("--ddqn", action='store_true')
