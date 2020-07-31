@@ -108,18 +108,19 @@ class DDQN(object):
             V_next = tf.gather(Q_next, next_action, batch_dims=1)
             Q_target = reward + self.discount * tf.multiply(tf.stop_gradient(V_next), (1. - done))
             ##-----------------------CHECK TENSOR SHAPE-----------------------------##
-            #tf.debugging.assert_equal(state.shape, (self.batch_size, 84, 84, 4))
-            #tf.debugging.assert_equal(action.shape, (self.batch_size, 1))
-            #tf.debugging.assert_equal(next_state.shape, (self.batch_size, 84, 84, 4))
-            #tf.debugging.assert_equal(reward.shape, (self.batch_size, 1))
-            #tf.debugging.assert_equal(done.shape, (self.batch_size, 1))
-            #tf.debugging.assert_equal(next_action.shape, (self.batch_size, 1))
-            #tf.debugging.assert_equal(V_next.shape, (self.batch_size, 1))
+            if self.debug:
+                tf.debugging.assert_equal(state.shape, (self.batch_size, 84, 84, 4))
+                tf.debugging.assert_equal(action.shape, (self.batch_size, 1))
+                tf.debugging.assert_equal(next_state.shape, (self.batch_size, 84, 84, 4))
+                tf.debugging.assert_equal(reward.shape, (self.batch_size, 1))
+                tf.debugging.assert_equal(done.shape, (self.batch_size, 1))
+                tf.debugging.assert_equal(next_action.shape, (self.batch_size, 1))
+                tf.debugging.assert_equal(V_next.shape, (self.batch_size, 1))
             ##______________________________________________________________________##
-            #loss = tf.clip_by_value(self.loss_func(Q, Q_target), -1, 1)
             loss = self.loss_func(Q, Q_target)
         grad = tape.gradient(loss, self.train_net.trainable_variables)
-        grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
+        if self.clip_grad:
+            grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
         self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
         return {
                 'loss': loss,

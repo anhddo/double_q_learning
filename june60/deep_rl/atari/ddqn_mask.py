@@ -132,7 +132,6 @@ class DDQN(object):
                 tf.debugging.assert_equal(Q.shape, (self.batch_size, 1))
                 tf.debugging.assert_equal(Q_target.shape, (self.batch_size, 1))
             ##______________________________________________________________________##
-            #loss = tf.clip_by_value(self.loss_func(Q, Q_target), -1, 1)
             loss = self.loss_func(Q, Q_target)
         grad = tape.gradient(loss, self.train_net.trainable_variables)
         if self.clip_grad:

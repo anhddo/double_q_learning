@@ -75,7 +75,7 @@ def evaluation(args, agent, noop_action_index):
             total_time += episode_time
             n_episode += 1
             ep_reward = 0
-        if npr.uniform() < 0.05:
+        if npr.uniform() < args.eval_exploration:
             action = env.action_space.sample()
         else:
             action = agent._take_action(state[np.newaxis,...]) 
@@ -102,8 +102,8 @@ def record(args):
     agent = DDQN(args)
     agent.load_model(args.load_model_path)
     agent.take_action = EpsilonGreedy(
-                0.05,
-                0.05,
+                args.eval_exploration,
+                args.eval_exploration,
                 1, 
                 1, 
                 lambda :[env.action_space.sample()],
@@ -224,7 +224,7 @@ def train(args):
             action, action_info = agent.take_action(state[np.newaxis,...], step)
         img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
         # We set terminal flag is true every time agent loses life
-        end_episode = end_episode or info['ale.lives'] < current_lives
+        is_life_lost = info['ale.lives'] < current_lives
         current_lives = info['ale.lives']
 
         ep_reward += reward
@@ -235,11 +235,9 @@ def train(args):
         img = preprocess(img)
         state_list.append(img)
         state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
-        replay_buffer.add(state_list, action, reward, float(end_episode))
+        replay_buffer.add(state_list, action, reward, float(end_episode or is_life_lost))
 
         state_list = state_list[1:]
-
-
 
 
 if __name__ == '__main__':
@@ -284,7 +282,8 @@ if __name__ == '__main__':
     parser.add_argument("--clip-grad", action='store_true')
 
     parser.add_argument("--init-exploration", type=float, default=1.)
-    parser.add_argument("--final-exploration", type=float, default=0.1)
+    parser.add_argument("--final-exploration", type=float, default=0.01)
+    parser.add_argument("--eval-exploration", type=float, default=0.001)
     parser.add_argument("--final-exploration-step", type=int, default=1000000)
 
     parser.add_argument("--dqn", action='store_true')
