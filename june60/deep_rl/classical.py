@@ -66,6 +66,7 @@ class MLP(Model):
 
 class DDQN(object):
     def __init__(self, args):
+        self.debug = args.debug
         obs_dim, action_dim = args.obs_dim, args.action_dim
         self.discount = args.discount
         self.batch_size = args.batch
@@ -97,13 +98,16 @@ class DDQN(object):
 
 
         if args.rms:
-            self.optimizer = optimizers.RMSprop(learning_rate=args.lr, rho=0.95, epsilon=0.01)
+            self.optimizer = optimizers.RMSprop(
+                    learning_rate=args.lr,
+                    rho=0.95,
+                    momentum=0.95,
+                    epsilon=0.01)
         elif args.adam:
             self.optimizer = optimizers.Adam(learning_rate=args.lr)
         elif args.sgd:
             self.optimizer = optimizers.SGD(learning_rate=args.lr, momentum=0.9)
 
-        #self.loss_func = losses.Huber(tf.constant(1.0, dtype=TF_TYPE))
         if args.huber:
             self.loss_func = losses.Huber()
         elif args.mse:
@@ -144,6 +148,11 @@ class DDQN(object):
                 np.array(reward, dtype=np.float32)
         state = state.astype(np.float32)
         next_state = next_state.astype(np.float32)
+        action, reward, done = action.reshape(-1, 1), reward.reshape(-1, 1), done.reshape(-1, 1)
+        if self.debug:
+            assert action.shape == (self.batch_size, 1)
+            assert done.shape == (self.batch_size, 1)
+            assert reward.shape == (self.batch_size, 1)
 
 
         
@@ -151,17 +160,23 @@ class DDQN(object):
 
     @tf.function
     def train_(self, state, action, reward, next_state, done):
+        """
+        state, next_state: 
+        action, reward, done: 
+        """
         #tf.print(state.shape, action.shape, reward.shape, next_state.shape, done.shape)
         with tf.GradientTape() as tape:
             Q = self.train_net(state)
             Q = tf.gather(Q, action, batch_dims=1)
             Q_policy_next = self.next_policy_net(next_state)
             next_action = tf.argmax(Q_policy_next, axis=1)
+            next_action = tf.reshape(next_action, shape=(-1, 1))
             Q_next = self.Q_next_net(next_state)
-            V_next = tf.gather(Q_next, tf.reshape(next_action, shape=(-1, 1)), batch_dims=1)
+            V_next = tf.gather(Q_next, next_action, batch_dims=1)
             Q_target = reward + self.discount * tf.multiply(V_next, (1. - done))
             loss = self.loss_func(Q, Q_target)
-            #loss = tf.clip_by_value(loss, -1., 1.)
+            if self.debug:
+                pass
         grad = tape.gradient(loss, self.train_net.trainable_variables)
         #grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
         self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
@@ -178,7 +193,7 @@ def evaluation(args, agent):
     total_reward, ep_reward = 0, 0
     n_episode = 0
     for _ in range(args.eval_step):
-        if npr.uniform() < 0.05:
+        if npr.uniform() < args.eval_epsilon:
             action = env.action_space.sample()
         else:
             state = state.astype(np.float32)
@@ -193,13 +208,14 @@ def evaluation(args, agent):
             ep_reward = 0
             state = env.reset()
     env.close()
-    return total_reward / n_episode
+    return total_reward / max(1, n_episode)
 
      
 
 
-def train(args):
-    logs = Logs(args.save_dir)
+def train(args, train_index):
+    args.log_path = incremental_path(join(args.log_dir, '*.json'))
+    logs = Logs(args.log_path)
 
     env = gym.make(args.env)
 
@@ -214,7 +230,7 @@ def train(args):
     agent.take_action = EpsilonGreedy(
             args.max_epsilon,
             args.min_epsilon,
-            args.step, 
+            args.training_step, 
             args.final_exploration_step, 
             lambda :[env.action_space.sample()],
             lambda s: agent._take_action(s)).action
@@ -222,13 +238,14 @@ def train(args):
     ep_reward = 0
     tracking = []
     episode = 0
-    print_util = PrintUtil(args.epoch_step, args.step)
+    print_util = PrintUtil(args.epoch_step, args.training_step)
 
     train_info = None
     done = True
     last_score = 0
-    best_eval_scoore = -1e6
-    for step in range(args.step):
+    best_eval_score = -1e6
+    model_path = None
+    for step in range(args.training_step):
         if done:
             state = env.reset()
             episode += 1
@@ -240,19 +257,21 @@ def train(args):
         next_state, reward, done, _ = env.step(action)
         next_state = next_state.astype(np.float32)
 
+        ep_reward += reward
+
         sample = (state, action, reward, next_state, done)
         replay_buffer.add(sample)
 
         state = next_state
-        if step > args.start:
-            if step % args.train_step == 0:
+        if step > args.learn_start:
+            if step % args.update_freq == 0:
                 batch = replay_buffer.get_batch(args.batch)
                 train_info = agent.train(batch)
 
             if args.soft_update:
                 agent.soft_update()
             else:
-                if step % args.update == 0:
+                if step % args.update_target == 0:
                     agent.hard_update()
 
         ##-----------------------  TERMINAL SECTION ----------------------------##
@@ -261,36 +280,42 @@ def train(args):
             if train_info:
                 logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
                 logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
-                logs.train_reward.append((step, last_score))
-            eval_reward = evaluation(args, agent)
-            best_eval_score =max(best_eval_score, eval_reward)
-            logs.eval_reward.append((step, eval_reward))
+                logs.train_score.append((step, last_score))
+            eval_score = evaluation(args, agent)
+            best_eval_score =max(best_eval_score, eval_score)
+            logs.eval_score.append((step, eval_score))
+            logs.save()
+            #Save best model
+            if eval_score > best_eval_score:
+                best_eval_score = eval_score
+                model_path = join(args.model_dir, '{}.ckpt'.format(step))
+                agent.save_model(model_path)
             print_util.epoch_print(step, [
-                "Best eval score: {:.2f}, Eval score:{:.2f}".format(best_eval_score, eval_reward)
+                "Train index: {}".format(train_index),
+                "Epsilon: {:.2f}".format(action_info['epsilon']),
+                "Best eval score: {:.2f}, Train score:{:.2f}, eval score:{:.2f}"\
+                        .format(best_eval_score, last_score, eval_score),
+                "Model path:{}".format(model_path)
                 ])
 
 
-
-    logs.save()
-
-
-
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Finite-horizon MDP")
+    parser = argparse.ArgumentParser(description="Classical control")
     parser.add_argument("--tmp-dir")
     parser.add_argument("--save-dir")
     parser.add_argument("--env", default='CartPole-v0')
+    parser.add_argument("--debug", action='store_true')
 
-    parser.add_argument("--step", type=int, default=1000000)
+    parser.add_argument("--training-step", type=int, default=1000000)
     parser.add_argument("--epoch-step", type=int, default=25000)
-    parser.add_argument("--eval-step", type=int, default=2000)
-    parser.add_argument("--update", type=int, default=1000)
+    parser.add_argument("--eval-step", type=int, default=4000)
+    parser.add_argument("--update-target", type=int, default=1000)
+    parser.add_argument("--update-freq", type=int, default=4)
     parser.add_argument("--buffer", type=int, default=100000)
     parser.add_argument("--batch", type=int, default=32)
-    parser.add_argument("--n-run", type=int, default=10)
+    parser.add_argument("--n-run", type=int, default=5)
     parser.add_argument("--discount", type=float, default=0.99)
-    parser.add_argument("--train-step", type=int, default=1)
-    parser.add_argument("--start", type=int, default=10000)
+    parser.add_argument("--learn-start", type=int, default=10000)
 
     parser.add_argument("--fixed-policy", action='store_true')
 
@@ -310,6 +335,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--max-epsilon", type=float, default=1)
     parser.add_argument("--min-epsilon", type=float, default=0.1)
+    parser.add_argument("--eval-epsilon", type=float, default=0.05)
     parser.add_argument("--final-exploration-step", type=int, default=100000)
 
     parser.add_argument("--dqn", action='store_true')
@@ -327,11 +353,14 @@ if __name__ == '__main__':
                 + [int(d) for d in os.listdir(dir_path) \
                 if isdir(join(dir_path, d)) and d.isnumeric()])
         args.save_dir = join(dir_path, str(index))
+        args.model_dir = join(args.save_dir, 'model')
+        args.log_dir = join(args.save_dir, 'logs')
         os.makedirs(args.save_dir, exist_ok=True)
+        os.makedirs(args.log_dir, exist_ok=True)
     ##______________________________________________________________________##
     print(args.save_dir)
     with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
         f.write(json.dumps(vars(args)))
 
-    for _ in range(args.n_run):
-        train(args)
+    for train_index in range(args.n_run):
+        train(args, train_index)

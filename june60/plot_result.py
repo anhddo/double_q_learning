@@ -1,3 +1,9 @@
+# ======================================================================== 
+# Author: Anh Do
+# Mail: anhddo93 (at) gmail (dot) com 
+# Website: https://sites.google.com/view/anhddo 
+# ========================================================================
+
 import numpy as np
 import matplotlib.pyplot as plt
 import json
@@ -7,6 +13,17 @@ from os import listdir
 from .util import Logs
 from tqdm import tqdm
 import os
+"""
+Structure of a folder:
+    BreakoutDeterministic-v4
+    |---settings.json
+    |---model                //Save best model
+    |---|---1.ckpt
+    |---|---2.ckpt
+    |---logs                 //Save all the logs for plotting
+    |---|---1.json
+    |---|---2.json
+"""
 
 def log_plot(args):
     log_file_path = args.log_path
@@ -20,10 +37,10 @@ def log_plot(args):
 
         plt.subplot(311)
         plt.grid()
-        x, y = zip(*logs['train_reward'])
-        plt.plot(x, y, label='train reward')
-        x, y = zip(*logs['eval_reward'])
-        plt.plot(x, y, label='eval reward')
+        x, y = zip(*logs['train_score'])
+        plt.plot(x, y, label='train score')
+        x, y = zip(*logs['eval_score'])
+        plt.plot(x, y, label='eval score')
         plt.xlabel('frames')
         plt.legend()
 
@@ -43,54 +60,63 @@ def log_plot(args):
         plt.legend()
         plt.savefig(join(dir_path, '{}.pdf'.format(index)))
 
-def get_info(logs_path):
-    with open(join(logs_path, 'setting.json')) as f:
-        setting = (json.loads(f.read()))
-        x = range(setting['step'])
-        reward, loss = [], []
-        files = [e for e in listdir(logs_path) if e.split(".")[0].isnumeric()]
-        files = [join(logs_path, e) for e in files]
-        for file_name in tqdm(files):
+def get_info(save_dir):
+    with open(join(save_dir, 'setting.json')) as f:
+        setting = json.loads(f.read())
+        x = range(setting['training_step'])
+        train_score, eval_score, loss = [], [], []
+        logs_dir = join(save_dir, 'logs')
+        files = [e for e in listdir(logs_dir) if e.split(".")[0].isnumeric()]
+        files = [join(logs_dir, e) for e in files]
+        print(files)
+        for file_name in files:
             logs = Logs(file_name)
             logs.load()
-            timestep, y = zip(*logs.reward)
-            reward.append(np.interp(x, timestep, y))
-            timestep, y = zip(*logs.reward)
-            loss.append(np.interp(x, timestep, y))
 
-        reward, loss = np.stack(reward), np.stack(loss)
-        return {'reward': reward, 'loss': loss, 'setting': setting}
+            timestep, y = zip(*logs.train_score)
+            train_score.append(np.interp(x, timestep, y))
+
+            timestep, y = zip(*logs.eval_score)
+            eval_score.append(np.interp(x, timestep, y))
+
+        train_score, eval_score = np.stack(train_score), np.stack(eval_score)
+        return {'train_score': train_score, 'eval_score': eval_score, 'setting': setting}
+
+def fill_plot(y, label):
+    m = np.mean(y, axis=0)
+    s = np.std(y, axis=0)
+    step = len(m)
+    plt.plot(m, label=label, linewidth=1, alpha=0.8)
+    plt.fill_between(range(step), m - s, m + s, alpha=0.1)
 
 def avg_plot(args):
     plt.grid()
-    plt.gcf().set_size_inches(args['width'], args['height'])
+    plt.gcf().set_size_inches(args.width, args.height)
 
     ##-------------------Get the result of different algorithm -------------##
-    for file_path, plot_label in zip(args['log_dir'], args['label']):
-        log_info = get_info(file_path)
-        m = np.mean(log_info['reward'], axis=0)
-        s = np.std(log_info['reward'], axis=0)
-        plt.plot(m, label=plot_label, linewidth=1, alpha=0.8)
-        plt.fill_between(range(log_info['setting']['step']), m - s, m + s, alpha=0.1)
+    for save_dir_, plot_label in zip(args.save_dir, args.label):
+        log_info = get_info(save_dir_)
+        fill_plot(log_info['train_score'], plot_label + '-train_score')
+        fill_plot(log_info['eval_score'], plot_label + '-eval_score')
     ##______________________________________________________________________##
     plt.legend()
 
-    plt.savefig(args['plot_name'])
+    plt.savefig(args.plot_name)
 
 def line_plot(args):
     log_info = get_info(args)
     reward = log_info['reward']
     plt.grid()
-    plt.gcf().set_size_inches(args['width'], args['height'])
+    plt.gcf().set_size_inches(args.width, args.height)
     for r in reward:
         plt.plot(r)
-    plt.savefig(args['plot_name'])
+    plt.savefig(args.plot_name)
 
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finite-horizon MDP")
-    parser.add_argument("--log-dir", nargs='+' )
+    parser.add_argument("--save-dir", nargs='+' )
     parser.add_argument("--log-path")
     parser.add_argument("--label", nargs='+')
     parser.add_argument("--plot-name")

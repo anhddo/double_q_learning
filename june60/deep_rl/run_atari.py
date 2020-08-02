@@ -198,11 +198,11 @@ def train(args):
                         args.save_dir,
                         "Model path: {}".format(model_path),
                 ])
-            logs.eval_reward.append((step, round(avg_score, 3)))
+            logs.eval_score.append((step, round(avg_score, 3)))
             if train_info:
                 logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
                 logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
-            logs.train_reward.append((step, round(last_ep_reward, 3)))
+            logs.train_score.append((step, round(last_ep_reward, 3)))
             logs.save()
             ##______________________________________________________________________##
         if step > args.learn_start:

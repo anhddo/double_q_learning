@@ -10,6 +10,20 @@ def allow_gpu_growth():
         tf.config.experimental.set_memory_growth(gpu, True)
 ##----------------------- ----------------------------------------------##
 """
+Return the incremental index
+is_dir = False
+folder /a/b/c/ has files 1.ext, 2.ext, 3.ext
+path_pattern: /a/b/c/*.ext
+output: /a/b/c/4.ext
+-----------------
+
+
+
+if is_dir=True
+folder /a/b/c/ has folder 1/ 4/
+
+path_pattern: /a/b/c
+output: /a/b/c/5
 """
 def incremental_path(path_pattern, is_dir=False):
     if is_dir:
@@ -27,20 +41,19 @@ def incremental_path(path_pattern, is_dir=False):
         return file_path
 
 class Logs(object):
-    def __init__(self, file_path):
+    def __init__(self, log_path):
         self.loss = []
-        self.train_reward = []
-        self.eval_reward = []
+        self.train_score = []
+        self.eval_score = []
         self.Q = []
         self.episode = []
-        self.log_path = file_path
+        self.log_path = log_path
 
     def load(self):
-        with open(self.path) as f:
+        with open(self.log_path) as f:
             self.__dict__.update(json.load(f))
 
     def save(self):
-        #file_path = incremental_path(os.path.join(self.path,"*.json"))
         with open(self.log_path, 'w') as f:
             json.dump(self.__dict__, f)
 
