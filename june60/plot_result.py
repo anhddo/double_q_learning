@@ -60,34 +60,37 @@ def log_plot(args):
         plt.legend()
         plt.savefig(join(dir_path, '{}.pdf'.format(index)))
 
-def get_info(save_dir):
+def get_info(save_dir, args):
     with open(join(save_dir, 'setting.json')) as f:
         setting = json.loads(f.read())
-        x = range(setting['training_step'])
+        training_step = setting['training_step']
+        x = range(training_step)
         train_score, eval_score, loss = [], [], []
         logs_dir = join(save_dir, 'logs')
         files = [e for e in listdir(logs_dir) if e.split(".")[0].isnumeric()]
         files = [join(logs_dir, e) for e in files]
-        print(files)
         for file_name in files:
             logs = Logs(file_name)
             logs.load()
 
             timestep, y = zip(*logs.train_score)
-            train_score.append(np.interp(x, timestep, y))
+            x_ = np.interp(x, timestep, y)[::training_step // args.plot_sample]
+            train_score.append(x_)
 
             timestep, y = zip(*logs.eval_score)
-            eval_score.append(np.interp(x, timestep, y))
+            x_ = np.interp(x, timestep, y)[::training_step // args.plot_sample]
+            eval_score.append(x_)
 
         train_score, eval_score = np.stack(train_score), np.stack(eval_score)
         return {'train_score': train_score, 'eval_score': eval_score, 'setting': setting}
 
-def fill_plot(y, label):
+def fill_plot(y, label, setting):
     m = np.mean(y, axis=0)
     s = np.std(y, axis=0)
     step = len(m)
     plt.plot(m, label=label, linewidth=1, alpha=0.8)
     plt.fill_between(range(step), m - s, m + s, alpha=0.1)
+    plt.xlabel('tx10^{}'.format(int(np.log10(args.plot_sample))))
 
 def avg_plot(args):
     plt.grid()
@@ -95,9 +98,10 @@ def avg_plot(args):
 
     ##-------------------Get the result of different algorithm -------------##
     for save_dir_, plot_label in zip(args.save_dir, args.label):
-        log_info = get_info(save_dir_)
-        fill_plot(log_info['train_score'], plot_label + '-train_score')
-        fill_plot(log_info['eval_score'], plot_label + '-eval_score')
+        log_info = get_info(save_dir_, args)
+        setting = log_info['setting']
+        fill_plot(log_info['train_score'], plot_label + '-train_score', setting)
+        fill_plot(log_info['eval_score'], plot_label + '-eval_score', setting)
     ##______________________________________________________________________##
     plt.legend()
 
@@ -124,6 +128,7 @@ if __name__ == '__main__':
     parser.add_argument("--avg", action='store_true')
     parser.add_argument("--width", type=float, default=20)
     parser.add_argument("--height", type=float, default=5)
+    parser.add_argument("--plot-sample", type=int, default=1000)
     args = parser.parse_args()
     #args = vars(args)
 

@@ -282,7 +282,6 @@ def train(args, train_index):
                 logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
                 logs.train_score.append((step, last_score))
             eval_score = evaluation(args, agent)
-            best_eval_score =max(best_eval_score, eval_score)
             logs.eval_score.append((step, eval_score))
             logs.save()
             #Save best model
