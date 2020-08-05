@@ -96,9 +96,9 @@ def record(args):
     env = gym.make(args.env)
     env = gym.wrappers.Monitor(env, args.record_path, force=True)
     args.action_dim = env.action_space.n
-    img = env.reset()
-    img = preprocess(img)
-    state = np.stack([img] * 4, axis=2)
+    #img = env.reset()
+    #img = preprocess(img)
+    #state = np.stack([img] * 4, axis=2)
     agent = DDQN(args)
     agent.load_model(args.load_model_path)
     agent.take_action = EpsilonGreedy(
@@ -110,6 +110,7 @@ def record(args):
                 lambda s: agent._take_action(s)
             ).action
 
+    state = init_env(env, 0, agent, args)
     while True:
         action, action_info = agent.take_action(state[np.newaxis,...], 0)
         img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
