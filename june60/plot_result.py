@@ -11,7 +11,6 @@ from os.path import join
 import argparse
 from os import listdir
 from .util import Logs
-from tqdm import tqdm
 import os
 """
 Structure of a folder:
