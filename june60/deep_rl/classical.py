@@ -68,6 +68,7 @@ class DDQN(object):
     def __init__(self, args):
         self.debug = args.debug
         obs_dim, action_dim = args.obs_dim, args.action_dim
+        self.action_dim = action_dim
         self.discount = args.discount
         self.batch_size = args.batch
 
@@ -133,6 +134,14 @@ class DDQN(object):
                  self.fixed_net.get_weights())]
         self.fixed_net.set_weights(weights)
 
+    def save_model(self, path):
+        self.train_net.save_weights(path)
+
+    def load_model(self, path):
+        if path is not None:
+            self.train_net.load_weights(path)
+        else:
+            print('No model path')
     @tf.function
     def _take_action(self, state):
         Q = self.policy_net(state)
@@ -165,15 +174,25 @@ class DDQN(object):
         action, reward, done: 
         """
         #tf.print(state.shape, action.shape, reward.shape, next_state.shape, done.shape)
+
+
         with tf.GradientTape() as tape:
             Q = self.train_net(state)
-            Q = tf.gather(Q, action, batch_dims=1)
-            Q_policy_next = self.next_policy_net(next_state)
-            next_action = tf.argmax(Q_policy_next, axis=1)
-            next_action = tf.reshape(next_action, shape=(-1, 1))
+            action_onehot = tf.one_hot(tf.squeeze(action), self.action_dim)
+            Q = Q * action_onehot
+
+            Q_next = self.next_policy_net(next_state)
+            next_action = tf.argmax(Q_next, axis=1)
+            next_action_onehot = tf.one_hot(next_action, self.action_dim)
+
+            Q_next = Q_next * next_action_onehot
+            V_next = tf.reduce_sum(Q_next, 1, keepdims=True)
+
             Q_next = self.Q_next_net(next_state)
-            V_next = tf.gather(Q_next, next_action, batch_dims=1)
-            Q_target = reward + self.discount * tf.multiply(V_next, (1. - done))
+            next_action_onehot = tf.one_hot(next_action, self.action_dim)
+            Q_next = Q_next * next_action_onehot
+            V_next = tf.reduce_sum(Q_next, 1, keepdims=True)
+            Q_target = reward + self.discount * tf.stop_gradient(V_next) * (1. - done)
             loss = self.loss_func(Q, Q_target)
             if self.debug:
                 pass
