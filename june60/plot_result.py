@@ -76,11 +76,16 @@ def get_info(save_dir, args):
             x_ = np.interp(x, timestep, y)[::training_step // args.plot_sample]
             train_score.append(x_)
 
-            timestep, y = zip(*logs.eval_score)
-            x_ = np.interp(x, timestep, y)[::training_step // args.plot_sample]
-            eval_score.append(x_)
+            if logs.eval_score:
+                timestep, y = zip(*logs.eval_score)
+                x_ = np.interp(x, timestep, y)[::training_step // args.plot_sample]
+                eval_score.append(x_)
 
-        train_score, eval_score = np.stack(train_score), np.stack(eval_score)
+        if train_score:
+            train_score = np.stack(train_score)
+        if eval_score:
+            eval_score = np.stack(eval_score)
+        #train_score, eval_score = np.stack(train_score), np.stack(eval_score)
         return {'train_score': train_score, 'eval_score': eval_score, 'setting': setting}
 
 def fill_plot(y, label, setting):
@@ -99,8 +104,12 @@ def avg_plot(args):
     for save_dir_, plot_label in zip(args.save_dir, args.label):
         log_info = get_info(save_dir_, args)
         setting = log_info['setting']
-        fill_plot(log_info['train_score'], plot_label + '-train_score', setting)
-        fill_plot(log_info['eval_score'], plot_label + '-eval_score', setting)
+        train_score = log_info['train_score']
+        eval_score = log_info['eval_score']
+        if type(train_score) is np.ndarray:
+            fill_plot(train_score, plot_label + '-train_score', setting)
+        if type(eval_score) is np.ndarray:
+            fill_plot(eval_score, plot_label + '-eval_score', setting)
     ##______________________________________________________________________##
     plt.legend()
 
