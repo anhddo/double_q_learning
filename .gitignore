@@ -4,3 +4,6 @@ tmp
 bash/june60
 __pycache__
 ovi/__pycache__
+*.log
+*.pdf
+*.aux
