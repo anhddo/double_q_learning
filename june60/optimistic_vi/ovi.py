@@ -63,7 +63,7 @@ class OVI:
         self.w      A x d           Model parameter
 
     """
-    def __init__(self, A, n, d, min_clip, max_clip, env, setting):
+    def __init__(self, A, n, d, min_clip, max_clip, beta, env):
         tf_type = tf.dtypes.double
         self.M = tf.Variable(tf.eye(d, batch_shape=[A], dtype=tf_type) * 10)
         self.X = tf.Variable(tf.zeros((A, n, d), dtype=tf_type))
@@ -82,8 +82,7 @@ class OVI:
 
         self.A = A
         self.n = n
-        self.setting = setting
-        self.beta = tf.constant(setting['beta'], dtype=tf_type)
+        self.beta = tf.constant(beta, dtype=tf_type)
 
     @tf.function
     def _update_term(self, A, s):

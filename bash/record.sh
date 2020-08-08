@@ -7,5 +7,5 @@ python -m june60.deep_rl.run_atari --record \
     --load-model-path ${DIRPATH}/model/$3.ckpt \
     --env $1
 
-ssh root@vultr "mkdir -p ~/server/$1"
-scp ${DIRPATH}/videos/*.mp4 vultr:~/server/$1/$2
+#ssh root@vultr "mkdir -p ~/server/$1"
+#scp ${DIRPATH}/videos/*.mp4 vultr:~/server/$1/$2

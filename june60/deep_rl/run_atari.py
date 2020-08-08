@@ -10,7 +10,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from ..algo import EpsilonGreedy
 from datetime import datetime
-from ..util import allow_gpu_growth, incremental_path, Logs, PrintUtil
+from ..util import allow_gpu_growth, incremental_path, \
+        Logs, PrintUtil, make_training_dir, save_setting
 from ..plot_result import log_plot
 from os.path import join, isdir
 from .atari.ddqn_mask import DDQN
@@ -56,7 +57,6 @@ def init_env(env, noop_action_index, agent, args):
     return state
 
 def evaluation(args, agent, noop_action_index):
-    
     ep_reward = 0
     env = gym.make(args.env)
 
@@ -302,20 +302,23 @@ if __name__ == '__main__':
     else:
         ##-----------------------TRAIN SECTION -------------##
         ##-----------------------CREATE NEW FOLDER FOR ENVIRONMENT -------------##
-        if args.tmp_dir:
-            dir_path = join(args.tmp_dir, args.env)
-            os.makedirs(dir_path, exist_ok=True)
-
-            args.save_dir = incremental_path(dir_path, is_dir=True)
-            args.model_dir = join(args.save_dir, 'model')
-            args.log_dir = join(args.save_dir, 'logs')
-
-            os.makedirs(args.save_dir, exist_ok=True)
-            os.makedirs(args.log_dir, exist_ok=True)
-        ##______________________________________________________________________##
+        make_training_dir(args)
+        save_setting(args)
         print(args.save_dir)
-        with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
-            f.write(json.dumps(vars(args)))
+
+        #if args.tmp_dir:
+        #    dir_path = join(args.tmp_dir, args.env)
+        #    os.makedirs(dir_path, exist_ok=True)
+
+        #    args.save_dir = incremental_path(dir_path, is_dir=True)
+        #    args.model_dir = join(args.save_dir, 'model')
+        #    args.log_dir = join(args.save_dir, 'logs')
+
+        #    os.makedirs(args.save_dir, exist_ok=True)
+        #    os.makedirs(args.log_dir, exist_ok=True)
+        ###______________________________________________________________________##
+        #with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
+        #    f.write(json.dumps(vars(args)))
 
         for _ in range(args.n_run):
             train(args)
