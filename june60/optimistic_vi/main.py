@@ -3,8 +3,6 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from .ovi import OVI, FourierBasis
 from ..algo import EpsilonGreedy
 import tensorflow as tf
-from tqdm import trange
-import pandas as pd
 from datetime import datetime
 from ..util import allow_gpu_growth, incremental_path, Logs, PrintUtil, make_training_dir, save_setting
 from os.path import join
@@ -83,6 +81,7 @@ def train(args):
             print_util.epoch_print(t, [
                 "Last rewards:{}".format(logs.train_score[-5:])
                 ])
+            logs.save()
 
         if done:
             logs.train_score.append((t, ep_reward))
@@ -90,8 +89,8 @@ def train(args):
             state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
             ep_reward = 0
 
-    if args.write_result:
-        logs.save()
+    #if args.write_result:
+    #    logs.save()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finite-horizon MDP")

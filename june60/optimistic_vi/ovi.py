@@ -2,9 +2,7 @@ import tensorflow as tf
 import numpy as np
 import numpy.random as npr
 import gym
-from tqdm import trange
 from datetime import datetime
-from tqdm import trange
 
 class FourierBasis(object):
     """
