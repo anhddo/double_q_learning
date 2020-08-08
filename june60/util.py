@@ -40,6 +40,25 @@ def incremental_path(path_pattern, is_dir=False):
         file_path = os.path.join(dir_path, "{}.{}".format(index, extension))
         return file_path
 
+
+def make_training_dir(args):
+    if args.tmp_dir:
+        dir_path = join(args.tmp_dir, args.env)
+        os.makedirs(dir_path, exist_ok=True)
+
+        args.save_dir = incremental_path(dir_path, is_dir=True)
+        args.model_dir = join(args.save_dir, 'model')
+        args.log_dir = join(args.save_dir, 'logs')
+
+        os.makedirs(args.save_dir, exist_ok=True)
+        os.makedirs(args.log_dir, exist_ok=True)
+
+def save_setting(args):
+    with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
+        f.write(json.dumps(vars(args)))
+
+     
+
 class Logs(object):
     def __init__(self, log_path):
         self.loss = []
@@ -81,7 +100,7 @@ class PrintUtil():
         pstr = [
                 "{:.2f}e6/{}e6 steps, {:2d}%, Speed:{} it/s, Epoch time: {:.2f}min" 
                 .format(frame / 1e6,\
-                        self.total_step // 1000000, \
+                        self.total_step / 1000000, \
                         int(frame / self.total_step * 100), \
                         speed, \
                         (timer() - self.last_eval_time) / 60),\

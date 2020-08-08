@@ -7,8 +7,10 @@ do
     if [[ -e ${JSON} ]]; then
         python -m june60.plot_result --log-path ${JSON} \
             --width 10 --height 10 
-        ssh vultr "mkdir -p ~/server/$1/$2"
-        scp ${DIRPATH}/*.pdf vultr:~/server/$1/$2
+        mkdir -p /vinai/anhdd14/$1/$2
+        cp ${DIRPATH}/*.pdf /vinai/anhdd14/$1/$2/
+        #ssh vultr "mkdir -p ~/server/$1/$2"
+        #scp ${DIRPATH}/*.pdf vultr:~/server/$1/$2
     fi
     sleep 3m
 done
