@@ -31,15 +31,6 @@ def train(args):
 
     A = env.action_space.n
 
-    if args.debug:
-        writer = tf.summary.create_file_writer('{}/logs/{}-{}'\
-                .format(os.path.expanduser('~'),
-                    args.env_name,
-                    str(datetime.now())
-                )
-            )
-        writer.set_as_default()
-
     state = env.reset()
 
     fourier_basis = FourierBasis(args.fourier_order, env)
@@ -79,7 +70,8 @@ def train(args):
         state = next_state
         if t % args.epoch_step == 0:
             print_util.epoch_print(t, [
-                "Last rewards:{}".format(logs.train_score[-5:])
+                "Last rewards:{}".format(logs.train_score[-5:]),
+                "Folder path:{}".format(args.save_dir)
                 ])
             logs.save()
 
@@ -105,8 +97,8 @@ if __name__ == '__main__':
     parser.add_argument("--train-freq", type=int, default=1)
     parser.add_argument("--beta", type=float, default=0)
     parser.add_argument("--epsilon", type=float, default=0)
-    parser.add_argument("--max-epsilon", type=float, default=0.8)
-    parser.add_argument("--min-epsilon", type=float, default=0.05)
+    parser.add_argument("--max-epsilon", type=float, default=1)
+    parser.add_argument("--min-epsilon", type=float, default=0.1)
     parser.add_argument("--final-exploration-step", type=float, default=5000)
     parser.add_argument("--debug", action='store_true')
     parser.add_argument("--pause", action='store_true')
@@ -117,7 +109,6 @@ if __name__ == '__main__':
 
     make_training_dir(args)
     save_setting(args)
-    print(args.save_dir)
 
     for _ in range(args.n_run):
         train(args)

@@ -111,7 +111,6 @@ class OVI:
         self.X1[a, index_, :].assign(s1)
         self.R[a, index_].assign(r)
         self.D[a, index_].assign(done)
-        #self.index[a] = (self.index[a] + 1) % self.n
         self.index[a].assign((self.index[a] + 1) % self.n)
 
     @tf.function

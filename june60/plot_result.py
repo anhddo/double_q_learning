@@ -116,12 +116,21 @@ def avg_plot(args):
     plt.savefig(args.plot_name)
 
 def line_plot(args):
-    log_info = get_info(args)
-    reward = log_info['reward']
     plt.grid()
     plt.gcf().set_size_inches(args.width, args.height)
-    for r in reward:
-        plt.plot(r)
+
+    ##-------------------Get the result of different algorithm -------------##
+    for save_dir_, plot_label in zip(args.save_dir, args.label):
+        log_info = get_info(save_dir_, args)
+        setting = log_info['setting']
+        train_score = log_info['train_score']
+        eval_score = log_info['eval_score']
+        if type(train_score) is np.ndarray:
+            fill_plot(train_score, plot_label + '-train_score', setting)
+        if type(eval_score) is np.ndarray:
+            fill_plot(eval_score, plot_label + '-eval_score', setting)
+    ##______________________________________________________________________##
+    plt.legend()
     plt.savefig(args.plot_name)
 
 
