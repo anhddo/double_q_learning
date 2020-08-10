@@ -124,6 +124,7 @@ class OVI:
     def train(self):
         MX = tf.matmul(self.X, self.M)
         bonus = tf.reduce_sum(tf.multiply(self.X, MX), axis=2)
+        bonus = tf.math.sqrt(bonus)
         y = self._predict() + self.beta * bonus
         X_T = tf.transpose(self.X, perm=[0, 2, 1])
         X_Ty = tf.linalg.matvec(X_T, y)
