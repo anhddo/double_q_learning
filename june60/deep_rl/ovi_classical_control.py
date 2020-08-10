@@ -4,7 +4,6 @@ import tensorflow as tf
 from tensorflow.keras.layers import Dense
 from tensorflow.keras import Model, losses, optimizers, Sequential
 from ..algo import EpsilonGreedy
-from tqdm import trange
 import pandas as pd
 from datetime import datetime
 from ..util import allow_gpu_growth, incremental_path, Logs, PrintUtil
@@ -45,24 +44,52 @@ class RingBuffer(object):
         return batch
 
 class MLP(Model):
-    def __init__(self, input_dim, out_dim):
+    """
+    out_dim: number of action
+    """
+    def __init__(self, input_dim, out_dim, beta):
         super(MLP, self).__init__()
-        self.fn1 = Dense(32, activation='relu')
-        self.fn2 = Dense(32, activation='relu')
+        self.hidden_size = 32
+        self.fn1 = Dense(self.hidden_size, activation='relu')
+        self.fn2 = Dense(self.hidden_size, activation='relu')
         self.head = Dense(out_dim)
+        self.M = tf.Variable(tf.eye(self.hidden_size, batch_shape=[out_dim]) * 10)
+        self.beta = beta
+
+    @tf.function
+    def forward(self, x):
+        x = self.fn1(x)
+        embeded_vector = self.fn2(x)
+        Q = self.head(embeded_vector) 
+        bonus = self.bonus(embeded_vector)
+        bonus = tf.stop_gradient(bonus)
+        return embeded_vector, Q + bonus
 
     @tf.function
     def call(self, x):
-        x = self.fn1(x)
-        x = self.fn2(x)
-        return self.head(x)
+        embeded_vector, Q = self.forward(x)
+        return Q 
+
+    @tf.function
+    def bonus(self, state):
+        MX = tf.matmul(state, self.M)
+        bonus = tf.reduce_sum(tf.multiply(state, MX), axis=2)
+        bonus = tf.sqrt(bonus)
+        bonus = self.beta * tf.transpose(bonus)
+
+        return bonus
+
+
+    @tf.function
+    def _update_term(self, A, s):
+        s = tf.reshape(s, shape=[-1, 1])
+        v = tf.transpose(s) @ A
+        return (A @ s @ v) / (1. + v @ s)
 
     @tf.function
     def update_inverse_covariance(self, a, s):
-        index_ = self.index[a]
-        x = self.X[a, index_, :]
         M_a = self.M[a]
-        M_a.assign(M_a + self._update_term(M_a, x) - self._update_term(M_a, s))
+        M_a.assign(M_a - self._update_term(M_a, s))
 
 
 class DDQN(object):
@@ -82,8 +109,8 @@ class DDQN(object):
 
         self.tau = args.tau
 
-        self.train_net = MLP(obs_dim, action_dim)
-        self.fixed_net = MLP(obs_dim, action_dim)
+        self.train_net = MLP(obs_dim, action_dim, args.beta)
+        self.fixed_net = MLP(obs_dim, action_dim, args.beta)
         self.train_net.trainable = True
         self.fixed_net.trainable = False
 
@@ -143,6 +170,15 @@ class DDQN(object):
             self.train_net.load_weights(path)
         else:
             print('No model path')
+
+
+    @tf.function
+    def _take_action0(self, state):
+        embeded_vector, Q = self.policy_net.forward(state)
+        A = tf.argmax(Q, axis=1)
+        self.policy_net.update_inverse_covariance(tf.squeeze(A), embeded_vector)
+        return A
+
     @tf.function
     def _take_action(self, state):
         Q = self.policy_net(state)
@@ -247,14 +283,6 @@ def train(args, train_index):
     args.action_dim = action_dim
     agent = DDQN(args)
 
-    agent.take_action = EpsilonGreedy(
-            args.max_epsilon,
-            args.min_epsilon,
-            args.training_step, 
-            args.final_exploration_step, 
-            lambda :[env.action_space.sample()],
-            lambda s: agent._take_action(s)).action
-
     ep_reward = 0
     tracking = []
     episode = 0
@@ -272,7 +300,11 @@ def train(args, train_index):
             last_score = ep_reward
             ep_reward = 0
         state = state.astype(np.float32)
-        action, action_info = agent.take_action(state.reshape(1, -1), step)
+        if step <= args.learn_start:
+            action = env.action_space.sample()
+        else:
+            action = agent._take_action0(state.reshape(1, -1))
+        # TODO: 
         action = tf.squeeze(action).numpy()
         next_state, reward, done, _ = env.step(action)
         next_state = next_state.astype(np.float32)
@@ -311,7 +343,6 @@ def train(args, train_index):
                 agent.save_model(model_path)
             print_util.epoch_print(step, [
                 "Train index: {}".format(train_index),
-                "Epsilon: {:.2f}".format(action_info['epsilon']),
                 "Best eval score: {:.2f}, Train score:{:.2f}, eval score:{:.2f}"\
                         .format(best_eval_score, last_score, eval_score),
                 "Model path:{}".format(model_path)
@@ -335,6 +366,7 @@ if __name__ == '__main__':
     parser.add_argument("--n-run", type=int, default=5)
     parser.add_argument("--discount", type=float, default=0.99)
     parser.add_argument("--learn-start", type=int, default=10000)
+    parser.add_argument("--beta", type=int, default=1)
 
     parser.add_argument("--fixed-policy", action='store_true')
 
@@ -380,6 +412,9 @@ if __name__ == '__main__':
     print(args.save_dir)
     with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
         f.write(json.dumps(vars(args)))
+
+    if args.debug:
+        tf.config.experimental_run_functions_eagerly(True)
 
     for train_index in range(args.n_run):
         train(args, train_index)
