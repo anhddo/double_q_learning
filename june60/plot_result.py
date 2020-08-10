@@ -92,9 +92,10 @@ def fill_plot(y, label, setting):
     m = np.mean(y, axis=0)
     s = np.std(y, axis=0)
     step = len(m)
-    plt.plot(m, label=label, linewidth=1, alpha=0.8)
-    plt.fill_between(range(step), m - s, m + s, alpha=0.1)
-    plt.xlabel('tx10^{}'.format(int(np.log10(args.plot_sample))))
+    x_label = np.arange(0, setting['training_step'], setting['training_step'] // args.plot_sample)
+    plt.plot(x_label, m, label=label, linewidth=1, alpha=0.8)
+    plt.fill_between(x_label, m - s, m + s, alpha=0.1)
+    #plt.xlabel('tx10^{}'.format(int(np.log10(args.plot_sample))))
 
 def avg_plot(args):
     plt.grid()

@@ -53,6 +53,12 @@ def make_training_dir(args):
         os.makedirs(args.save_dir, exist_ok=True)
         os.makedirs(args.log_dir, exist_ok=True)
 
+def calc_date_time(second):
+    day = int(second / (24 * 3600))
+    hour = int((second - day * 24 * 3600) / 3600)
+    minute = int((second - day * 24 * 3600 - hour * 3600) / 60)
+    return day, hour, minute
+
 def save_setting(args):
     with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
         f.write(json.dumps(vars(args)))
@@ -84,18 +90,13 @@ class PrintUtil():
         self.total_step = total_step
 
 
-    def calc_date_time(self, second):
-        day = int(second / (24 * 3600))
-        hour = int((second - day * 24 * 3600) / 3600)
-        minute = int((second - day * 24 * 3600 - hour * 3600) / 60)
-        return day, hour, minute
 
     def epoch_print(self, frame, pstr):
         time_elapsed = timer() - self.start_time
         speed = int(self.it_each_epoch / (timer() - self.last_eval_time))
         time_left = (self.total_step - frame) / speed
-        day, hour, minute = self.calc_date_time(time_elapsed)
-        day_left, hour_left, minute_left = self.calc_date_time(time_left)
+        day, hour, minute = calc_date_time(time_elapsed)
+        day_left, hour_left, minute_left = calc_date_time(time_left)
 
         pstr = [
                 "{:.2f}e6/{}e6 steps, {:2d}%, Speed:{} it/s, Epoch time: {:.2f}min" 
