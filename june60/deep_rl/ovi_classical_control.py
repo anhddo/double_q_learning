@@ -249,12 +249,9 @@ def evaluation(args, agent):
     total_reward, ep_reward = 0, 0
     n_episode = 0
     for _ in range(args.eval_step):
-        if npr.uniform() < args.eval_epsilon:
-            action = env.action_space.sample()
-        else:
-            state = state.astype(np.float32)
-            action = agent._take_action(state.reshape(1, -1))
-            action = tf.squeeze(action).numpy()
+        state = state.astype(np.float32)
+        action = agent._take_action(state.reshape(1, -1))
+        action = tf.squeeze(action).numpy()
         next_state, reward, done, _ = env.step(action)
         ep_reward += reward
         state = next_state
