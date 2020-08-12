@@ -137,7 +137,7 @@ def train(args):
     args.action_dim = action_dim
     agent = DDQN(args)
 
-    agent.take_action = EpsilonGreedy(
+    agent.epsilon_greedy_action = EpsilonGreedy(
                 args.init_exploration,
                 args.final_exploration,
                 args.training_step, 
@@ -167,6 +167,7 @@ def train(args):
     train_info = None
     update_step = 0
     best_score = -1e6
+    action_info = None
     for step in range(args.training_step):
         ##-----------------------  TERMINAL SECTION ----------------------------##
         if end_episode:
@@ -191,11 +192,15 @@ def train(args):
                 agent.save_model(model_path)
             best_score = max(best_score, avg_score)
             ##----------------------- PRINT SECTION---------------------------##
+            action_info_str = "Epsilon: {:.2f}".format(action_info['epsilon'])\
+                    if action_info is not None else ""
+                
+
             print_util.epoch_print(step, [
                 "Avg eval score: {:.2f}, total: {:.2f} min,  {:.2f} (s/episode)"\
                         .format(avg_score, eval_info['eval_time'] / 60, eval_time_per_episode),
-                        "Epsilon: {:.2f}".format(action_info['epsilon']), 
                         "Best score: {:.2f}".format(best_score),
+                        action_info_str,
                         args.save_dir,
                         "Model path: {}".format(model_path),
                 ])
@@ -222,7 +227,10 @@ def train(args):
         if step < args.learn_start:
             action = [env.action_space.sample()]
         else:
-            action, action_info = agent.take_action(state[np.newaxis,...], step)
+            if args.optimistic:
+                action = agent._take_action0(state[np.newaxis, ...])
+            else:
+                action, action_info = agent.epsilon_greedy_action(state[np.newaxis,...], step)
         img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
         # We set terminal flag is true every time agent loses life
         is_life_lost = info['ale.lives'] < current_lives
@@ -289,6 +297,9 @@ if __name__ == '__main__':
 
     parser.add_argument("--dqn", action='store_true')
     parser.add_argument("--ddqn", action='store_true')
+
+    parser.add_argument("--optimistic", action='store_true')
+    parser.add_argument("--beta", type=float, default=1)
 
     parser.add_argument("--name")
 

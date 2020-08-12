@@ -57,7 +57,8 @@ def log_plot(args):
         plt.plot(x, y, label='Q value')
         plt.xlabel('frames')
         plt.legend()
-        plt.savefig(join(dir_path, '{}.pdf'.format(index)))
+        #plt.savefig(join(dir_path, '{}.pdf'.format(index)))
+        plt.savefig(args.plot_name)
 
 def get_info(save_dir, args):
     with open(join(save_dir, 'setting.json')) as f:

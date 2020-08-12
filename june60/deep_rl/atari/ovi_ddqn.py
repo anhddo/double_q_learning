@@ -7,7 +7,6 @@
 import tensorflow as tf
 from tensorflow.keras import Model, losses, optimizers, Sequential
 from .model import CNN
-from .optimistic_model import OptimisticCNN
 
 class DDQN(object):
     """
@@ -29,14 +28,8 @@ class DDQN(object):
 
         self.tau = args.tau
 
-        if args.optimistic:
-            self.train_net = OptimisticCNN(self.action_dim, args.beta)
-            self.fixed_net = OptimisticCNN(self.action_dim, args.beta)
-        else:
-            self.train_net = CNN(self.action_dim)
-            self.fixed_net = CNN(self.action_dim)
-
-
+        self.train_net = CNN(self.action_dim)
+        self.fixed_net = CNN(self.action_dim)
         self.train_net.trainable = True
         self.fixed_net.trainable = False
 
@@ -98,13 +91,6 @@ class DDQN(object):
             print('No model path')
 
     @tf.function
-    def _take_action0(self, state):
-        embeded_vector, Q = self.policy_net.forward(state)
-        A = tf.argmax(Q, axis=1)
-        self.policy_net.update_inverse_covariance(tf.squeeze(A), embeded_vector)
-        return A
-
-    @tf.function
     def _take_action(self, state):
         Q = self.policy_net(state)
         A = tf.argmax(Q, axis=1)
@@ -150,9 +136,6 @@ class DDQN(object):
         grad = tape.gradient(loss, self.train_net.trainable_variables)
         if self.clip_grad:
             grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
-
-        #import pdb; pdb.set_trace();
-        #grad = [grad if grad is not None else tf.zero_like(trainable_var) for egrad, trainable_var in zip(grad, self.train_net.trainable_variables) ]
         self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
         return {
                 'loss': loss,
