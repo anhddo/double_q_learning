@@ -59,11 +59,13 @@ def calc_date_time(second):
     minute = int((second - day * 24 * 3600 - hour * 3600) / 60)
     return day, hour, minute
 
+def date_time_string(second):
+    day, hour, minute = calc_date_time(second)
+    return "{}d-{}h-{}m".format(day, hour, minute)
+
 def save_setting(args):
     with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
         f.write(json.dumps(vars(args)))
-
-     
 
 class Logs(object):
     def __init__(self, log_path):
@@ -94,9 +96,11 @@ class PrintUtil():
     def epoch_print(self, frame, pstr):
         time_elapsed = timer() - self.start_time
         speed = int(self.it_each_epoch / (timer() - self.last_eval_time))
-        time_left = (self.total_step - frame) / speed
-        day, hour, minute = calc_date_time(time_elapsed)
-        day_left, hour_left, minute_left = calc_date_time(time_left)
+        timeleft = (self.total_step - frame) / speed
+        #day, hour, minute = calc_date_time(time_elapsed)
+        time_elapsed_str = date_time_string(time_elapsed)
+        time_left_str = date_time_string(timeleft)
+        #day_left, hour_left, minute_left = calc_date_time(time_left)
 
         pstr = [
                 "{:.2f}e6/{}e6 steps, {:2d}%, Speed:{} it/s, Epoch time: {:.2f}min" 
@@ -105,8 +109,9 @@ class PrintUtil():
                         int(frame / self.total_step * 100), \
                         speed, \
                         (timer() - self.last_eval_time) / 60),\
-                "Elapsed time:{}d-{}h-{}m, Time left: {}d-{}h-{}m"\
-                .format(day, hour, minute, day_left, hour_left, minute_left),
+                "Elapsed time:{}, Time left: {}"\
+                #.format(day, hour, minute, day_left, hour_left, minute_left),
+                .format(time_elapsed_str, time_left_str),
                 ] + pstr
 
         self.last_eval_time = timer()

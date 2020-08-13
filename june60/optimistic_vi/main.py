@@ -4,7 +4,9 @@ from .ovi import OVI, FourierBasis
 from ..algo import EpsilonGreedy
 import tensorflow as tf
 from datetime import datetime
-from ..util import allow_gpu_growth, incremental_path, Logs, PrintUtil, make_training_dir, save_setting
+from timeit import default_timer as timer
+from ..util import allow_gpu_growth, incremental_path, Logs, PrintUtil,\
+        make_training_dir, save_setting, date_time_string
 from os.path import join
 import gym
 import argparse
@@ -16,18 +18,20 @@ import time
 
 allow_gpu_growth()
 
-def train(args):
+def train(args, train_index):
     args.log_path = incremental_path(join(args.log_dir, '*.json'))
-    print(args.log_path)
     logs = Logs(args.log_path)
     env = gym.make(args.env)
 
     if env.spec._env_name == 'CartPole':
         min_clip, max_clip = [0, 500]
+        logs.train_score.append((0, 0))
     elif env.spec._env_name == 'MountainCar':
         min_clip, max_clip = [-200, 0]
+        logs.train_score.append((0, -200))
     elif env.spec._env_name == 'Acrobot':
         min_clip, max_clip = [-500, 0]
+        logs.train_score.append((0, -500))
 
     A = env.action_space.n
 
@@ -64,14 +68,18 @@ def train(args):
 
         agent.update_inverse_covariance(action, state)
         agent.observe(state, action, reward, next_state, done)
+        #if t % args.train_freq == 0 and t > 500:
         if t % args.train_freq == 0:
             agent.train()
 
         state = next_state
         if t % args.epoch_step == 0:
+            time_elapsed = timer() - args.start_time
             print_util.epoch_print(t, [
                 "Last rewards:{}".format(logs.train_score[-5:]),
-                "Folder path:{}".format(args.save_dir)
+                "Train index: {}/{}".format(train_index, args.n_run),
+                "Folder path:{}".format(args.save_dir),
+                "Total time elapsed:{}".format(date_time_string(time_elapsed))
                 ])
             logs.save()
 
@@ -110,7 +118,8 @@ if __name__ == '__main__':
     make_training_dir(args)
     save_setting(args)
 
-    for _ in range(args.n_run):
-        train(args)
+    args.start_time = timer()
+    for train_index in range(args.n_run):
+        train(args, train_index + 1)
         if args.pause:
             time.sleep(1000)

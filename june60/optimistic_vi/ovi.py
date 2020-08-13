@@ -93,7 +93,7 @@ class OVI:
     def _predict(self):
         V1 = tf.matmul(self.X1, self.w, transpose_b=True)
         V1 = tf.reduce_max(V1, axis=2)
-        V1 = tf.clip_by_value(V1, clip_value_min=self.min_clip, clip_value_max=self.max_clip)
+        #V1 = tf.clip_by_value(V1, clip_value_min=self.min_clip, clip_value_max=self.max_clip)
         y = self.R + V1 * (1. - self.D)
         return y
 
@@ -122,10 +122,17 @@ class OVI:
 
     @tf.function
     def train(self):
+
+        V1 = tf.matmul(self.X1, self.w, transpose_b=True)
+        V1 = tf.reduce_max(V1, axis=2)
+        y = self.R + V1 * (1. - self.D)
         MX = tf.matmul(self.X, self.M)
         bonus = tf.reduce_sum(tf.multiply(self.X, MX), axis=2)
         bonus = tf.math.sqrt(bonus)
-        y = self._predict() + self.beta * bonus
+        #y = self._predict() + self.beta * bonus
+        y = self.R + (V1 + bonus) * (1. - self.D)
+        y = tf.clip_by_value(y, clip_value_min=self.min_clip, clip_value_max=self.max_clip)
+
         X_T = tf.transpose(self.X, perm=[0, 2, 1])
         X_Ty = tf.linalg.matvec(X_T, y)
         self.w.assign(tf.linalg.matvec(self.M, X_Ty))
