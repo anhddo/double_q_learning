@@ -1,6 +1,7 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
-from .ovi import OVI, FourierBasis
+from .util import FourierBasis
+from .model import ValueIteration, OptimisticValueIteration
 from ..algo import EpsilonGreedy
 import tensorflow as tf
 from datetime import datetime
@@ -18,44 +19,38 @@ import time
 
 allow_gpu_growth()
 
-def train(args, train_index):
+def train(args, train_index, fourier_basis, env):
     args.log_path = incremental_path(join(args.log_dir, '*.json'))
     logs = Logs(args.log_path)
-    env = gym.make(args.env)
-
-    if env.spec._env_name == 'CartPole':
-        min_clip, max_clip = [0, 500]
-        logs.train_score.append((0, 0))
-    elif env.spec._env_name == 'MountainCar':
-        min_clip, max_clip = [-200, 0]
-        logs.train_score.append((0, -200))
-    elif env.spec._env_name == 'Acrobot':
-        min_clip, max_clip = [-500, 0]
-        logs.train_score.append((0, -500))
-
-    A = env.action_space.n
-
-    state = env.reset()
-
-    fourier_basis = FourierBasis(args.fourier_order, env)
-    state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
-    d = len(state)
 
     ep_reward = 0
-    agent = OVI(A, args.buffer, d, min_clip, max_clip, args.beta, env)
+    if args.std_vi:
+        agent = ValueIteration(args)
+    elif args.optimistic:
+        agent = OptimisticValueIteration(args)
 
     tracking = []
-    agent.take_action = EpsilonGreedy(
-            args.max_epsilon, 
-            args.min_epsilon,
-            args.training_step,
-            args.final_exploration_step,
-            env.action_space.sample,
-            lambda state: agent._take_action(state).numpy()).action
+
+    #if args.optimistic:
+    #    agent.take_action = lambda state, t: agent._take_action(state).numpy() 
+    #if args.optimistic:
+    #    agent.take_action = lambda state, t: agent._take_action(state).numpy() 
+    #elif args.greedy:
+    #    agent.take_action = EpsilonGreedy(
+    #            args.max_epsilon, 
+    #            args.min_epsilon,
+    #            args.training_step,
+    #            args.final_exploration_step,
+    #            env.action_space.sample,
+    #            lambda state: agent._take_action(state).numpy()).action
 
     print_util = PrintUtil(args.epoch_step, args.training_step)
+    state = env.reset()
+    state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
     for t in range(args.training_step):
-        action, _ = agent.take_action(state, t)
+        action = agent.take_action_train(state)
+        action = action.numpy()
+        
 
         next_state, reward, done, _ = env.step(action)
         ep_reward += reward
@@ -65,8 +60,7 @@ def train(args, train_index):
 
         next_state = fourier_basis.transform(tf.constant(next_state, dtype=tf.dtypes.double))
 
-
-        agent.update_inverse_covariance(action, state)
+        #agent.update_inverse_covariance(action, state)
         agent.observe(state, action, reward, next_state, done)
         #if t % args.train_freq == 0 and t > 500:
         if t % args.train_freq == 0:
@@ -110,16 +104,41 @@ if __name__ == '__main__':
     parser.add_argument("--final-exploration-step", type=float, default=5000)
     parser.add_argument("--debug", action='store_true')
     parser.add_argument("--pause", action='store_true')
+    parser.add_argument("--std-vi", action='store_true')
+    parser.add_argument("--optimistic", action='store_true')
+    parser.add_argument("--egreedy", action='store_true')
     parser.add_argument("--write-result", action='store_true')
 
     args = parser.parse_args()
 
-
     make_training_dir(args)
     save_setting(args)
+    ##----------------------- augment info into args----------------------------------------------##
 
+
+    env = gym.make(args.env)
+    if env.spec._env_name == 'CartPole':
+        args.min_clip, args.max_clip = [0, 500]
+        #logs.train_score.append((0, 0))
+    elif env.spec._env_name == 'MountainCar':
+        args.min_clip, args.max_clip = [-200, 0]
+        #logs.train_score.append((0, -200))
+    elif env.spec._env_name == 'Acrobot':
+        args.min_clip, args.max_clip = [-500, 0]
+        #logs.train_score.append((0, -500))
+
+
+    args.n_action = env.action_space.n
+
+    state = env.reset()
+
+    fourier_basis = FourierBasis(args.fourier_order, env)
+    state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
+    args.ftr_dim = len(state)
     args.start_time = timer()
+    ##----------------------------------------------------------------------##
+
     for train_index in range(args.n_run):
-        train(args, train_index + 1)
+        train(args, train_index + 1, fourier_basis, env)
         if args.pause:
             time.sleep(1000)
