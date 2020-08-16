@@ -5,10 +5,19 @@
 \newcommand{\mcl}{\mathcal{L}}
 \newcommand{\x}{\mathbf{x}}
 \newcommand{\z}{\mathbf{z}}
-\begin{document} 
-$\mathcal{L}\left(\boldsymbol{\theta}, \boldsymbol{\phi} ; \mathbf{x}^{(i)}\right)=-D_{K L}\left(q_{\boldsymbol{\phi}}\left(\mathbf{z} \mid \mathbf{x}^{(i)}\right) \| p_{\boldsymbol{\theta}}(\mathbf{z})\right)+\mathbb{E}_{q_{\boldsymbol{\phi}}\left(\mathbf{z} \mid \mathbf{x}^{(i)}\right)}\left[\log p_{\boldsymbol{\theta}}\left(\mathbf{x}^{(i)} \mid \mathbf{z}\right)\right]$
+\newcommand{\E}{\mathbb{E}}
 
-$\mcl(\theta, \phi, \x)= -D_{KL}(  
-\left(\right)
-$
+\begin{document} 
+\begin{equation} 
+    \begin{split} 
+        \log p(\x) &=
+\E_{q(\z|\x)}  \left[\log q(\z|\x) -\log q(\z|\x) + \log p(\z|\x) -\log p(\z|\x) + \log p(\x)\right] \\
+        &=  E_{q(\z|\x)} \log \frac{q(\z|\x)}{p(\z|\x)} 
++ \E_ {q(\z|\x)}\left[-\log q(\z|\x) + \log p(\z,\x)\right] \\
+        &= D_{KL}\left(q(\z|\x)||p(\z|\x)\right) + \mcl ( \theta ,  \phi, \x)  
+    \end{split} 
+\end{equation}
+
+
+
 \end{document}
