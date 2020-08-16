@@ -65,7 +65,7 @@ def date_time_string(second):
 
 def save_setting(args):
     with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
-        f.write(json.dumps(vars(args)))
+        f.write(json.dumps(vars(args), indent=2))
 
 class Logs(object):
     def __init__(self, log_path):

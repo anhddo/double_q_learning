@@ -1,6 +1,6 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
-from .util import FourierBasis
+from .util import FourierBasis, EnvWrapper
 from .model import ValueIteration, OptimisticValueIteration
 from ..algo import EpsilonGreedy
 import tensorflow as tf
@@ -102,7 +102,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Finite-horizon MDP")
     parser.add_argument("--fourier-order", type=int, default=1)
     parser.add_argument("--env", default='CartPole-v0')
-    parser.add_argument("--algo", default='vi')
     parser.add_argument("--buffer", type=int, default=5000)
     parser.add_argument("--tmp-dir", default='~/tmp')
     parser.add_argument("--n-run", type=int, default=50)
@@ -124,32 +123,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     make_training_dir(args)
-    save_setting(args)
     ##----------------------- augment info into args----------------------------------------------##
 
 
     env = gym.make(args.env)
-    if env.spec._env_name == 'CartPole':
-        args.min_clip, args.max_clip = [0, 500]
-        #logs.train_score.append((0, 0))
-    elif env.spec._env_name == 'MountainCar':
-        args.min_clip, args.max_clip = [-200, 0]
-        #logs.train_score.append((0, -200))
-    elif env.spec._env_name == 'Acrobot':
-        args.min_clip, args.max_clip = [-500, 0]
-        #logs.train_score.append((0, -500))
-
-
     args.n_action = env.action_space.n
-
-    state = env.reset()
+    env = EnvWrapper(env)
 
     fourier_basis = FourierBasis(args.fourier_order, env)
-    state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
-    args.ftr_dim = len(state)
+    #state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
+    args.ftr_dim = fourier_basis.ftr_dim #len(state)
     args.start_time = timer()
+    args.min_clip, args.max_clip = env.min_clip, env.max_clip
+    save_setting(args)
     ##----------------------------------------------------------------------##
-
     for train_index in range(args.n_run):
         train(args, train_index + 1, fourier_basis, env)
         if args.pause:
