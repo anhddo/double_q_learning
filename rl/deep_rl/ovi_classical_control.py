@@ -76,7 +76,6 @@ class MLP(Model):
         bonus = tf.reduce_sum(tf.multiply(state, MX), axis=2)
         bonus = tf.sqrt(bonus)
         bonus = self.beta * tf.transpose(bonus)
-
         return bonus
 
 
@@ -171,19 +170,17 @@ class DDQN(object):
         else:
             print('No model path')
 
+    @tf.function
+    def take_action_train(self, state):
+        action_index, embeded_vector = self.take_action()
+        self.policy_net.update_inverse_covariance(tf.squeeze(action_index), embeded_vector)
+        return A
 
     @tf.function
-    def _take_action0(self, state):
+    def take_action(self, state):
         embeded_vector, Q = self.policy_net.forward(state)
         A = tf.argmax(Q, axis=1)
-        self.policy_net.update_inverse_covariance(tf.squeeze(A), embeded_vector)
-        return A
-
-    @tf.function
-    def _take_action(self, state):
-        Q = self.policy_net(state)
-        A = tf.argmax(Q, axis=1)
-        return A
+        return A, embeded_vector
 
     def train(self, batch):
         state, action, reward, next_state, done = zip(*batch)

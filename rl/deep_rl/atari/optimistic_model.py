@@ -7,46 +7,17 @@
 import tensorflow as tf
 from tensorflow.keras.layers import Dense, Conv2D, Flatten
 from tensorflow.keras import Model
+from .model import CNN
 
-class OptimisticCNN(Model):
+class OptimisticCNN(CNN):
     def __init__(self, n_action, beta):
-        super(OptimisticCNN, self).__init__()
-        self.conv1 = Conv2D(filters=32, 
-                kernel_size=8,
-                strides=4,
-                activation='relu',
-                kernel_initializer='he_normal')
-
-        self.conv2 = Conv2D(filters=64, 
-                kernel_size=4,
-                strides=2,
-                activation='relu',
-                kernel_initializer='he_normal')
-
-        self.conv3 = Conv2D(filters=64, 
-                kernel_size=3,
-                strides=1,
-                activation='relu',
-                kernel_initializer='he_normal')
-
-        self.flatten = Flatten()
-        self.dense1 = Dense(512, 
-                activation='relu',
-                kernel_initializer='he_normal')
-        self.dense2 = Dense(n_action,
-                kernel_initializer='he_normal')
-
+        super(OptimisticCNN, self).__init__(n_action)
         self.M = tf.Variable(tf.eye(512, batch_shape=[n_action]) * 10, trainable=False)
         self.beta = beta
 
     @tf.function
     def forward(self, x):
-        x = tf.cast(x, tf.float32) / 255.
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.flatten(x)
-        embeded_vector = self.dense1(x)
+        embeded_vector = self.forward_dense1(x)
         Q = self.dense2(embeded_vector) 
         bonus = self.bonus(embeded_vector)
         bonus = tf.stop_gradient(bonus)
@@ -63,9 +34,7 @@ class OptimisticCNN(Model):
         bonus = tf.reduce_sum(tf.multiply(embeded_vector, MX), axis=2)
         bonus = tf.sqrt(bonus)
         bonus = self.beta * tf.transpose(bonus)
-
         return bonus
-
 
     @tf.function
     def _update_term(self, A, s):

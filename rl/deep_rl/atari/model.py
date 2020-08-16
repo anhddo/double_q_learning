@@ -38,12 +38,17 @@ class CNN(Model):
 
     @tf.function
     def call(self, x):
+        x = self.forward_dense1(x)
+        return self.dense2(x)
+
+    @tf.function
+    def forward_dense1(self, x):
         x = tf.cast(x, tf.float32) / 255.
-        #x = x / 255.
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.flatten(x)
         x = self.dense1(x)
-        return self.dense2(x)
+        return x 
+
 
