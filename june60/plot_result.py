@@ -64,7 +64,6 @@ def get_info(save_dir, args):
     with open(join(save_dir, 'setting.json')) as f:
         setting = json.loads(f.read())
         training_step = setting['training_step']
-        x = range(training_step)
         train_score, eval_score, loss = [], [], []
         logs_dir = join(save_dir, 'logs')
         files = [e for e in listdir(logs_dir) if e.split(".")[0].isnumeric()]
@@ -74,6 +73,7 @@ def get_info(save_dir, args):
             logs.load()
 
             timestep, y = zip(*logs.train_score)
+            x = range(max(timestep))
             x_ = np.interp(x, timestep, y)[::training_step // args.plot_sample]
             train_score.append(x_)
 
@@ -83,6 +83,8 @@ def get_info(save_dir, args):
                 eval_score.append(x_)
 
         if train_score:
+            min_len = min((len(e) for e in train_score))
+            train_score = [e[:min_len] for e in train_score]
             train_score = np.stack(train_score)
         if eval_score:
             eval_score = np.stack(eval_score)
@@ -93,7 +95,8 @@ def fill_plot(y, label, setting):
     m = np.mean(y, axis=0)
     s = np.std(y, axis=0)
     step = len(m)
-    x_label = np.arange(0, setting['training_step'], setting['training_step'] // args.plot_sample)
+    #x_label = np.arange(0, setting['training_step'], setting['training_step'] // args.plot_sample)
+    x_label = range(len(m))
     plt.plot(x_label, m, label=label, linewidth=1, alpha=0.8)
     plt.fill_between(x_label, m - s, m + s, alpha=0.1)
     #plt.xlabel('tx10^{}'.format(int(np.log10(args.plot_sample))))

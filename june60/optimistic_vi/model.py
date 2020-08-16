@@ -6,18 +6,18 @@ from datetime import datetime
 
 class ValueIteration:
     """
-    A       is the number of action,
-    n       is the size of buffer, where we store all the past data.
+    n_action       is the number of action,
+    buff_size       is the size of buffer, where we store all the past data.
     ftr_dim       is the dimension of feature
 
     Size of tensor:
 
-        self.M      A x ftr_dim x ftr_dim       Inverse covariance matrix
-        self.X      A x buff_size x ftr_dim       Current state data
-        self.X1     A x buff_size x ftr_dim       Next state data
-        self.D      A x buff_size           Terminal flag for an episode
-        self.R      A x buff_size           Reward for an episode
-        self.w      A x ftr_dim           Model parameter
+        self.M      n_action x ftr_dim x ftr_dim       Inverse covariance matrix
+        self.X      n_action x buff_size x ftr_dim       Current state data
+        self.X1     n_action x buff_size x ftr_dim       Next state data
+        self.D      n_action x buff_size           Terminal flag for an episode
+        self.R      n_action x buff_size           Reward for an episode
+        self.w      n_action x ftr_dim           Model parameter
 
     """
     def __init__(self, args):
@@ -80,7 +80,6 @@ class ValueIteration:
     def V1(self):
         V1 = tf.matmul(self.X1, self.w, transpose_b=True)
         V1 = tf.reduce_max(V1, axis=2)
-        tf.print(V1.shape)
         return V1
 
     @tf.function
@@ -103,23 +102,19 @@ class OptimisticValueIteration(ValueIteration):
 
 
     @tf.function
-    def bonus(self, s):
-        s = tf.reshape(s, (-1, self.ftr_dim))
-        MX = tf.matmul(s, self.M)
-        bonus = tf.reduce_sum(tf.multiply(s, MX), axis=2)
+    def bonus(self, state):
+        #s = tf.reshape(s, (-1, self.ftr_dim))
+        if len(state.shape) == 1:
+            bonus = tf.linalg.matvec(tf.linalg.matvec(self.M, state), state)
+            return bonus
+        MX = tf.matmul(state, self.M)
+        bonus = tf.reduce_sum(tf.multiply(state, MX), axis=2)
         bonus = tf.math.sqrt(bonus)
         return bonus
 
     @tf.function
-    def take_action_train(self, state):
-        action_index = self.take_action(state)
-        #self.update_inverse_covariance(action_index, state)
-        return action_index
-
-    @tf.function
     def take_action(self, state):
         bonus = self.bonus(state)
-        bonus = tf.squeeze(bonus)
         V = tf.squeeze(tf.linalg.matvec(self.w, state))
         V += self.beta * bonus
         action_index = tf.argmax(V, output_type=tf.dtypes.int32)
@@ -128,10 +123,8 @@ class OptimisticValueIteration(ValueIteration):
     @tf.function
     def train(self):
         V1 = self.V1()
-        bonus = self.bonus(self.X)
-        # TODO: 
+        bonus = self.beta * self.bonus(self.X)
         #V1 = tf.reduce_max(V1, axis=2)
-        tf.print(self.ftr_dim, V1.shape, bonus.shape)
-        #tf.print(bonus.shape)
-        #y = self.R + (V1 + bonus) * (1. - self.D)
-        #Jkself.update_w(y)
+        #tf.print(self.R.shape, self.D.shape, self.ftr_dim, V1.shape, bonus.shape)
+        y = self.R + (V1 + bonus) * (1. - self.D)
+        self.update_w(y)

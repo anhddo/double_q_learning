@@ -19,6 +19,22 @@ import time
 
 allow_gpu_growth()
 
+def eval(agent, env):
+    ep_reward = 0
+    state = env.reset()
+    state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
+    done = False
+    while not done:
+        action = agent.take_action(state)
+        action = action.numpy()
+        state, reward, done, _ = env.step(action)
+        state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
+        ep_reward += reward
+    return ep_reward
+
+
+
+
 def train(args, train_index, fourier_basis, env):
     args.log_path = incremental_path(join(args.log_dir, '*.json'))
     logs = Logs(args.log_path)
@@ -29,13 +45,9 @@ def train(args, train_index, fourier_basis, env):
     elif args.optimistic:
         agent = OptimisticValueIteration(args)
 
-    tracking = []
 
-    #if args.optimistic:
-    #    agent.take_action = lambda state, t: agent._take_action(state).numpy() 
-    #if args.optimistic:
-    #    agent.take_action = lambda state, t: agent._take_action(state).numpy() 
-    #elif args.greedy:
+    reward = eval(agent, env)
+    logs.train_score.append((0, reward))
     #    agent.take_action = EpsilonGreedy(
     #            args.max_epsilon, 
     #            args.min_epsilon,
@@ -97,7 +109,7 @@ if __name__ == '__main__':
     parser.add_argument("--training-step", type=int, default=25000)
     parser.add_argument("--epoch-step", type=int, default=1000)
     parser.add_argument("--train-freq", type=int, default=1)
-    parser.add_argument("--beta", type=float, default=0)
+    parser.add_argument("--beta", type=float, default=1)
     parser.add_argument("--epsilon", type=float, default=0)
     parser.add_argument("--max-epsilon", type=float, default=1)
     parser.add_argument("--min-epsilon", type=float, default=0.1)
