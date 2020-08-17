@@ -34,12 +34,9 @@ def evaluation(args, agent):
     total_reward, ep_reward = 0, 0
     n_episode = 0
     for _ in range(args.eval_step):
-        if npr.uniform() < args.eval_epsilon:
-            action = env.action_space.sample()
-        else:
-            state = state.astype(np.float32)
-            action = agent._take_action(state.reshape(1, -1))
-            action = tf.squeeze(action).numpy()
+        state = state.astype(np.float32)
+        action = agent.take_action_eval(state.reshape(1, -1))
+        action = tf.squeeze(action).numpy()
         next_state, reward, done, _ = env.step(action)
         ep_reward += reward
         state = next_state
@@ -68,13 +65,6 @@ def train(args, train_index):
     args.action_dim = action_dim
     agent = DDQN(args)
 
-    agent.take_action = EpsilonGreedy(
-            args.max_epsilon,
-            args.min_epsilon,
-            args.training_step, 
-            args.final_exploration_step, 
-            lambda :[env.action_space.sample()],
-            lambda s: agent.take_action(s)).action
 
     ep_reward = 0
     tracking = []
@@ -97,7 +87,7 @@ def train(args, train_index):
             last_score = ep_reward
             ep_reward = 0
         state = state.astype(np.float32)
-        action, action_info = agent.take_action(state.reshape(1, -1), step)
+        action, action_info = agent.take_action_train(state.reshape(1, -1), step)
         action = tf.squeeze(action).numpy()
         next_state, reward, done, _ = env.step(action)
         next_state = next_state.astype(np.float32)
@@ -134,6 +124,7 @@ def train(args, train_index):
                 best_eval_score = eval_score
                 model_path = join(args.model_dir, '{}.ckpt'.format(step))
                 agent.save_model(model_path)
+
             print_util.epoch_print(step, [
                 "Train index: {}".format(train_index),
                 "Epsilon: {:.2f}".format(action_info['epsilon']),
@@ -168,6 +159,8 @@ if __name__ == '__main__':
 
     parser.add_argument("--vi", action='store_true')
     parser.add_argument("--pol", action='store_true')
+    parser.add_argument("--optimistic", action='store_true')
+
 
     parser.add_argument("--huber", action='store_true')
     parser.add_argument("--mse", action='store_true')

@@ -2,6 +2,7 @@ from tensorflow.keras import Model, losses, optimizers, Sequential
 import tensorflow as tf, numpy as np
 from tensorflow.keras.layers import Dense
 from rl.algo import EpsilonGreedy
+from rl.util import objectview
 
 TF_TYPE = tf.float32
 
@@ -78,15 +79,8 @@ class DDQN(object):
         if args.fixed_policy:
             self.policy_net = self.fixed_net
 
-        agent.take_action = EpsilonGreedy(
-                args.max_epsilon,
-                args.min_epsilon,
-                args.training_step, 
-                args.final_exploration_step, 
-                lambda :[env.action_space.sample()],
-                lambda s: agent.take_action(s)).action
-
-
+        self.e_greedy_train = EpsilonGreedy(args)
+        self.eval_epsilon = args.eval_epsilon
 
 
     def hard_update(self):
@@ -109,16 +103,20 @@ class DDQN(object):
         else:
             print('No model path')
 
-    @tf.function
-    def take_action_train(self, state):
-        Q = self.policy_net(state)
-        A = tf.argmax(Q, axis=1)
+    def take_action_train(self, state, step):
+        epsilon = self.e_greedy_train.get_epsilon(step)
+        if epsilon > npr.uniform():
+            action_index = npr.randint(0, self.action_dim)
+        else:
+            action_index = self.take_action(state)
         return A
 
     @tf.function
     def take_action_eval(self, state):
-        Q = self.policy_net(state)
-        A = tf.argmax(Q, axis=1)
+        if self.eval_epsilon > npr.uniform():
+            action_index = npr.randint(0, self.action_dim)
+        else:
+            action_index = self.take_action(state)
         return A
 
     @tf.function
