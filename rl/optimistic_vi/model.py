@@ -3,41 +3,42 @@ import numpy as np
 import numpy.random as npr
 import gym
 from datetime import datetime
+from rl.algo import EpsilonGreedy
 
 class ValueIteration:
     """
-    n_action       is the number of action,
+    action_dim       is the number of action,
     buff_size       is the size of buffer, where we store all the past data.
     ftr_dim       is the dimension of feature
 
     Size of tensor:
 
-        self.M      n_action x ftr_dim x ftr_dim       Inverse covariance matrix
-        self.X      n_action x buff_size x ftr_dim       Current state data
-        self.X1     n_action x buff_size x ftr_dim       Next state data
-        self.D      n_action x buff_size           Terminal flag for an episode
-        self.R      n_action x buff_size           Reward for an episode
-        self.w      n_action x ftr_dim           Model parameter
+        self.M      action_dim x ftr_dim x ftr_dim       Inverse covariance matrix
+        self.X      action_dim x buff_size x ftr_dim       Current state data
+        self.X1     action_dim x buff_size x ftr_dim       Next state data
+        self.D      action_dim x buff_size           Terminal flag for an episode
+        self.R      action_dim x buff_size           Reward for an episode
+        self.w      action_dim x ftr_dim           Model parameter
 
     """
     def __init__(self, args):
-        n_action = args.n_action
+        action_dim = args.action_dim
         ftr_dim = args.ftr_dim
         buff_size = args.buffer
         tf_type = tf.dtypes.double
-        self.M = tf.Variable(tf.eye(ftr_dim, batch_shape=[n_action], dtype=tf_type) * 10)
-        self.X = tf.Variable(tf.zeros((n_action, buff_size, ftr_dim), dtype=tf_type))
-        self.X1 = tf.Variable(tf.zeros((n_action, buff_size, ftr_dim), dtype=tf_type))
-        self.R = tf.Variable(tf.zeros((n_action, buff_size), dtype=tf_type))
-        self.D = tf.Variable(tf.zeros((n_action, buff_size), dtype=tf_type))
-        self.w = tf.Variable(tf.zeros((n_action, ftr_dim), dtype=tf_type))
+        self.M = tf.Variable(tf.eye(ftr_dim, batch_shape=[action_dim], dtype=tf_type) * 10)
+        self.X = tf.Variable(tf.zeros((action_dim, buff_size, ftr_dim), dtype=tf_type))
+        self.X1 = tf.Variable(tf.zeros((action_dim, buff_size, ftr_dim), dtype=tf_type))
+        self.R = tf.Variable(tf.zeros((action_dim, buff_size), dtype=tf_type))
+        self.D = tf.Variable(tf.zeros((action_dim, buff_size), dtype=tf_type))
+        self.w = tf.Variable(tf.zeros((action_dim, ftr_dim), dtype=tf_type))
 
         self.min_clip = tf.constant(args.min_clip, dtype=tf_type)
         self.max_clip = tf.constant(args.max_clip, dtype=tf_type)
 
-        self.index = tf.Variable(tf.zeros((n_action), dtype=tf.dtypes.int32))
+        self.index = tf.Variable(tf.zeros((action_dim), dtype=tf.dtypes.int32))
 
-        self.n_action = n_action
+        self.action_dim = action_dim
         self.buff_size = buff_size
         self.ftr_dim = ftr_dim
         #self.beta = tf.constant(beta, dtype=tf_type)
@@ -51,9 +52,8 @@ class ValueIteration:
         self.D[a, index_].assign(done)
         self.index[a].assign((self.index[a] + 1) % self.buff_size)
 
-    @tf.function
-    def take_action_train(self, state):
-        action_index = self.take_action(state)
+    def take_action_train(self, state, step):
+        action_index = self.take_action(state).numpy()
         self.update_inverse_covariance(action_index, state)
         return action_index
 
@@ -94,6 +94,22 @@ class ValueIteration:
         V1 = self.V1()
         y = self.R + V1 * (1. - self.D)
         self.update_w(y)
+
+class GreedyValueIteration(ValueIteration):
+    def __init__(self, args):
+        super(GreedyValueIteration, self).__init__(args)
+        self.e_greedy_train = EpsilonGreedy(args)
+
+    def take_action_train(self, state, step):
+        epsilon = self.e_greedy_train.get_epsilon(step)
+        if epsilon > npr.uniform():
+            action_index = npr.randint(0, self.action_dim)
+        else:
+            action_index = self.take_action(state).numpy()
+        self.update_inverse_covariance(action_index, state)
+        return action_index
+
+
 
 class OptimisticValueIteration(ValueIteration):
     def __init__(self, args):

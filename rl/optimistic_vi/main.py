@@ -1,7 +1,7 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 from .util import FourierBasis, EnvWrapper
-from .model import ValueIteration, OptimisticValueIteration
+from .model import ValueIteration, OptimisticValueIteration, GreedyValueIteration
 from ..algo import EpsilonGreedy
 import tensorflow as tf
 from datetime import datetime
@@ -44,26 +44,18 @@ def train(args, train_index, fourier_basis, env):
         agent = ValueIteration(args)
     elif args.optimistic:
         agent = OptimisticValueIteration(args)
+    elif args.egreedy:
+        agent = GreedyValueIteration(args)
 
 
     reward = eval(agent, env)
     logs.train_score.append((0, reward))
-    #    agent.take_action = EpsilonGreedy(
-    #            args.max_epsilon, 
-    #            args.min_epsilon,
-    #            args.training_step,
-    #            args.final_exploration_step,
-    #            env.action_space.sample,
-    #            lambda state: agent._take_action(state).numpy()).action
 
     print_util = PrintUtil(args.epoch_step, args.training_step)
     state = env.reset()
     state = fourier_basis.transform(tf.constant(state, dtype=tf.dtypes.double))
     for t in range(args.training_step):
-        action = agent.take_action_train(state)
-        action = action.numpy()
-        
-
+        action = agent.take_action_train(state, t)
         next_state, reward, done, _ = env.step(action)
         ep_reward += reward
 
@@ -127,7 +119,7 @@ if __name__ == '__main__':
 
 
     env = gym.make(args.env)
-    args.n_action = env.action_space.n
+    args.action_dim = env.action_space.n
     env = EnvWrapper(env)
 
     fourier_basis = FourierBasis(args.fourier_order, env)
