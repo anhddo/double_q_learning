@@ -123,3 +123,6 @@ class PrintUtil():
         print('|'+'=' * L+'|')
         print('\n')
 
+class objectview(object):
+    def __init__(self, d):
+        self.__dict__ = d
