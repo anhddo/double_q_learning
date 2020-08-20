@@ -11,7 +11,7 @@ import gym , argparse , sys , json , glob , time
 
 from rl.util import allow_gpu_growth, incremental_path, Logs, PrintUtil
 from rl.algo import EpsilonGreedy
-from .model import DDQN
+from .model import DDQN, OptimisticDDQN
 from .replay_buffer import RingBuffer
 
 
@@ -36,7 +36,7 @@ def evaluation(args, agent):
     for _ in range(args.eval_step):
         state = state.astype(np.float32)
         action = agent.take_action_eval(state.reshape(1, -1))
-        action = tf.squeeze(action).numpy()
+        #print(action, type(action))
         next_state, reward, done, _ = env.step(action)
         ep_reward += reward
         state = next_state
@@ -63,7 +63,10 @@ def train(args, train_index):
 
     args.obs_dim = obs_dim
     args.action_dim = action_dim
-    agent = DDQN(args)
+    if args.optimistic:
+        agent = OptimisticDDQN(args)
+    else:
+        agent = DDQN(args)
 
 
     ep_reward = 0
@@ -87,8 +90,7 @@ def train(args, train_index):
             last_score = ep_reward
             ep_reward = 0
         state = state.astype(np.float32)
-        action, action_info = agent.take_action_train(state.reshape(1, -1), step)
-        action = tf.squeeze(action).numpy()
+        action = agent.take_action_train(state.reshape(1, -1), step)
         next_state, reward, done, _ = env.step(action)
         next_state = next_state.astype(np.float32)
 
@@ -159,7 +161,9 @@ if __name__ == '__main__':
 
     parser.add_argument("--vi", action='store_true')
     parser.add_argument("--pol", action='store_true')
+
     parser.add_argument("--optimistic", action='store_true')
+    parser.add_argument("--beta", type=float, default=1)
 
 
     parser.add_argument("--huber", action='store_true')

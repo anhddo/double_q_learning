@@ -95,6 +95,7 @@ class ValueIteration:
         y = self.R + V1 * (1. - self.D)
         self.update_w(y)
 
+
 class GreedyValueIteration(ValueIteration):
     def __init__(self, args):
         super(GreedyValueIteration, self).__init__(args)
@@ -140,7 +141,5 @@ class OptimisticValueIteration(ValueIteration):
     def train(self):
         V1 = self.V1()
         bonus = self.beta * self.bonus(self.X)
-        #V1 = tf.reduce_max(V1, axis=2)
-        #tf.print(self.R.shape, self.D.shape, self.ftr_dim, V1.shape, bonus.shape)
         y = self.R + (V1 + bonus) * (1. - self.D)
         self.update_w(y)

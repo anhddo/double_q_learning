@@ -10,7 +10,6 @@ class EpsilonGreedy(object):
         final_exploration_step = 1
         if hasattr(args, "final_exploration_step"):
             final_exploration_step = args.final_exploration_step
-        print(final_exploration_step)
         self.epsilon_decay = (self.min_epsilon / self.max_epsilon) ** (1. / final_exploration_step)
         self.epsilon = self.max_epsilon
 
