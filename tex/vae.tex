@@ -2,12 +2,14 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{bm}
+\usepackage{xcolor}
 \newcommand{\mcl}{\mathcal{L}}
 \newcommand{\x}{\mathbf{x}}
 \newcommand{\z}{\mathbf{z}}
 \newcommand{\E}{\mathbb{E}}
 
 \begin{document} 
+\textbf{Variational bound?}
 \begin{equation} 
     \begin{split} 
         \log p(\x) &=
@@ -17,7 +19,32 @@
         &= D_{KL}\left(q(\z|\x)||p(\z|\x)\right) + \mcl ( \theta ,  \phi, \x)  
     \end{split} 
 \end{equation}
+\textbf{Lower bound}
+\begin{equation} 
+    \begin{split} 
+        \mcl ( \theta, \phi, \x) = -D_{KL}\left(q_ { \phi }(\z|\x)||p_ { \theta }(\z)\right) 
+         + \E_ {q_ { \phi }(z|x)}\left[\log(p_ { \theta }\x|\z) \right]
+    \end{split} 
+\end{equation}
+\textcolor{red}{ Question: Derivative w.r.t $ \phi $ or $q_ { \phi } (\z)$? } \\
+Section (2.2) Gradient of the lower bound w.r.t $ \phi $ 
+\[
+\nabla_{ \phi }\E_{q_ { \phi } (\z)}\left[f(\z)\right] 
+        =\E_{q_ { \phi }(\z)}\left[f(\z) \nabla_{\textcolor{red}{q_\phi(z)}  }\log q_ { \phi } (\z)\right] 
+\]
+\begin{equation} 
+    \begin{split} 
+    \nabla_{ \phi }\E_{q_ { \phi } (\z)}\left[f(\z)\right]   
+        &= \nabla_{ \phi } \int q_{ \phi } (\z) f(\z) d\z 
+    = \int f(\z)\nabla_{ \phi } q_{ \phi } (\z) d\z
+    = \int f(\z) \frac{q_{ \phi } (\z)}{q_{ \phi } (\z)}\nabla_{ \phi } q_{ \phi } (\z) d\z \\
+        &= \int q_ { \phi }(\z) f(\z) \nabla_{ \phi }\log q_ { \phi } (\z) d\z
+        =\E_{q_ { \phi }(\z)}\left[f(\z) \nabla_{ \textcolor{red}{ \phi }}\log q_ { \phi } (\z)\right] 
+    \end{split} 
+\end{equation}
 
+\[
+\]
 
-
+\textbf{Explain why is intractable?} 
 \end{document}
