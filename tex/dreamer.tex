@@ -6,12 +6,37 @@
 \newcommand{\x}{\mathbf{x}}
 \newcommand{\z}{\mathbf{z}}
 \newcommand{\E}{\mathbb{E}}
+\newcommand{\pr}{\mathbb{P}}
+\DeclareMathOperator*{\argmax}{argmax} 
+\DeclareMathOperator*{\argmin}{argmin} 
 
+\title{Deep reinforcment learning note}
+\author{Anh Do}
 \begin{document} 
-\title{DREAMER}
-\begin{equation} 
-\end{equation}
+\maketitle
 
+\section{DREAMER}
+Constrastive estimation 
+\section{HOMER algorithm}
+HOMER learns a new reward-free abstract call 
+\textbf{kinematic inseparability} which use to guide the exploration
 
-
+\begin{itemize}
+    \item  Shared
+backward dynamics crucially implies that a single policy simultaneously maximizes the probability of
+observing a set of kinematically inseparable observations, which is useful for exploration.
+      \item    Shared forward
+dynamics is naturally useful for recovering the latent state space and model
+    \item  Perhaps most importantly, we
+show that a kinematic inseparability abstraction can be recovered from a bottleneck in a regressor trained on a
+contrastive estimation problem derived from raw observations
+\end{itemize}
+We call the policy that visit a particular state with maximum probability as a 
+\textit{homing policies} \\
+\textbf{Maximum visitation probability}
+\[
+    \eta \left(s\right) = \max _{ \pi \in \Pi _{NS}} \pr_{ \pi } \left[s\right] 
+\]
+\textbf{Definition 1:} Homing policy \\
+\textbf{Definition 2: $\alpha$-policy cover}
 \end{document}

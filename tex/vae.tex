@@ -27,11 +27,16 @@
     \end{split} 
 \end{equation}
 \textcolor{red}{ Question: Derivative w.r.t $ \phi $ or $q_ { \phi } (\z)$? } \\
-Section (2.2) Gradient of the lower bound w.r.t $ \phi $ 
-\[
+%Section (2.2): Gradient of the lower bound w.r.t $ \phi $ 
+In section (2.2): The usual (naive) Monte Carlo gradient estimator 
+for this type of problem is
+ $
 \nabla_{ \phi }\E_{q_ { \phi } (\z)}\left[f(\z)\right] 
         =\E_{q_ { \phi }(\z)}\left[f(\z) \nabla_{\textcolor{red}{q_\phi(z)}  }\log q_ { \phi } (\z)\right] 
-\]
+ $
+
+ \hrulefill
+
 \begin{equation} 
     \begin{split} 
     \nabla_{ \phi }\E_{q_ { \phi } (\z)}\left[f(\z)\right]   

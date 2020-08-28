@@ -1,19 +1,28 @@
 \documentclass{beamer} 
 \usepackage{amsmath}
 \usepackage{amsfonts}
+\usepackage[ruled, vlined, linesnumbered]{algorithm2e}
 \usetheme{Madrid}
+\beamertemplatenavigationsymbolsempty
 %\usecolortheme{beaver}
-\author{Anh Do}
-\institute{VinAI}
-\title{Foundation of probability}
+%\author{Anh Do}
+%\institute{VinAI}
+\date{}
+\title{Regret Bounds for Optimistic Value Iteration in Average-Reward MDPs}
 
 \newcommand{\f}{\mathcal{F}}
 \newcommand{\g}{\mathcal{G}}
 \newcommand{\X}{\mathcal{X}}
 
 
+\DeclareMathOperator*{\argmax}{argmax} 
 
 \begin{document} 
+\begin{frame}{}
+    \maketitle
+     
+\end{frame}
+
 \begin{frame}{Outline}
 \begin{itemize}
 \item Background and problem definition
@@ -32,23 +41,41 @@
  
 \end{frame}
 
+
 \begin{frame}{Contribution}
- 
+    Proposed a provable efficient algorithm for average reward problem in Linear MDP
 \end{frame}
 
-\begin{frame}{Method}
- 
+\begin{frame}{Optimistic value iteration for average reward problems}
+\small 
+\begin{algorithm}[H]
+\SetAlgoLined
+\textbf{Input:} scale parameter $H$, regularization parameter $\lambda$, confidence level $\delta\in (0,1)$, the number of phase $T$.\\
+\textbf{Initialization:} Let $\gamma = 1-1/H$, $\widetilde V_1=H$, $\widetilde Q_1=H$. \\
+\For{t=1,...,T}{
+    Calculate the empirical covariance matrix: $M_{t} = \sum_{k=1}^{t-1}\phi(s_k, a_k)\phi(s_k, a_k)^\top + \lambda I$.\\
+    Update the regularized least square estimate as:
+    $
+       w_{t} = M_{t}^{-1}\sum_{k=1}^{t-1}\phi(s_k, a_k) \left[r(s_k, a_k) + \gamma \widetilde V_{t-1}(s_{k+1})\right]  \;.
+    $ 
+    \\
+    Find the optimistic estimation of $Q$-function: $\widetilde Q_{t}(s, a) = \phi(s, a)^\top w_{t} + \beta_t(\delta) \| \phi(s, a) \|_{M_{t}^{-1}}$.\\
+    Take action $a_t = \argmax_a \widetilde Q_t(s_t, a)$ and observe $s_{t+1}$. \\
+    Update the value function: $\widetilde V_{t}(s) = \min \{\max_a \widetilde Q_{t}(s, a), H \}$.
+}
+\caption{}
+\label{algo:val_iter}
+\end{algorithm}
+
+\end{frame}
+
+\begin{frame}{Useful results}
 \end{frame}
 
 
-
-\begin{frame}{Experiment}
+\begin{frame}{Experimental results}
  
 \end{frame}
-
-
-
- 
 
 
 \end{document}
