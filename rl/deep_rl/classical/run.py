@@ -129,7 +129,7 @@ def train(args, train_index):
 
             print_util.epoch_print(step, [
                 "Train index: {}".format(train_index),
-                "Epsilon: {:.2f}".format(action_info['epsilon']),
+                agent.train_info_str(),
                 "Best eval score: {:.2f}, Train score:{:.2f}, eval score:{:.2f}"\
                         .format(best_eval_score, last_score, eval_score),
                 "Model path:{}".format(model_path)
@@ -198,7 +198,7 @@ if __name__ == '__main__':
         args.log_dir = join(args.save_dir, 'logs')
         os.makedirs(args.save_dir, exist_ok=True)
         os.makedirs(args.log_dir, exist_ok=True)
-    ##______________________________________________________________________##
+    ##_____________________________________________________________________##
     print(args.save_dir)
     with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
         f.write(json.dumps(vars(args)))

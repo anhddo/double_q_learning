@@ -17,16 +17,11 @@ class MLP(Model):
         self.head = Dense(out_dim)
 
     @tf.function
-    def forward(self, x):
-        x = self.fn1(x)
-        embeded_vector = self.fn2(x)
-        Q = self.head(embeded_vector) 
-        return Q, embeded_vector
-
-    @tf.function
     def call(self, x):
-        Q, _ = self.forward(x)
-        return Q
+        x = self.fn1(x)
+        x = self.fn2(x)
+        x = self.head(x) 
+        return x
 
     @tf.function
     def take_action(self, state):
@@ -46,11 +41,31 @@ class OptimisticMLP(MLP):
 
 
     @tf.function
-    def bonus(self, state):
-        MX = tf.matmul(state, self.M)
-        bonus = tf.reduce_sum(tf.multiply(state, MX), axis=2)
+    def forward(self, x):
+        x = self.fn1(x)
+        embeded_vector = self.fn2(x)
+        Q = self.head(embeded_vector) 
+        return Q, embeded_vector
+
+    @tf.function
+    def _call(self, state):
+        Q, embeded_vector = self.forward(state)
+        bonus = self.bonus(embeded_vector)
+        Q = Q + bonus
+        return Q, embeded_vector
+
+    @tf.function
+    def call(self, state):
+        Q, _ = self._call(state) 
+        return Q
+
+    @tf.function
+    def bonus(self, z):
+        MX = tf.matmul(z, self.M)
+        bonus = tf.reduce_sum(tf.multiply(z, MX), axis=2)
         bonus = tf.sqrt(bonus)
         bonus = self.beta * tf.transpose(bonus)
+        bonus = tf.stop_gradient(bonus)
         return bonus
 
     @tf.function
@@ -66,11 +81,9 @@ class OptimisticMLP(MLP):
 
     @tf.function
     def _take_action(self, state):
-        Q, embeded_vector = self.forward(state)
-        bonus = self.bonus(embeded_vector)
-        Q = Q + self.beta * bonus
-        action = tf.argmax(Q, output_type=tf.dtypes.int32)
-        tf.print(action)
+        Q, embeded_vector = self._call(state)
+        action = tf.argmax(Q, axis=1, output_type=tf.dtypes.int32)
+        action = tf.squeeze(action)
         return action, embeded_vector
 
     @tf.function
@@ -85,8 +98,10 @@ class OptimisticMLP(MLP):
         return action
 
 
-class DDQN(object):
-    def __init__(self, args):
+class DDQN_Base(object):
+    def __init__(self, train_net, fixed_net, args):
+        self.train_net = train_net
+        self.fixed_net = fixed_net 
         self.debug = args.debug
         obs_dim, action_dim = args.obs_dim, args.action_dim
         self.action_dim = action_dim
@@ -102,8 +117,6 @@ class DDQN(object):
 
         self.tau = args.tau
 
-        self.train_net = MLP(obs_dim, action_dim)
-        self.fixed_net = MLP(obs_dim, action_dim)
         self.train_net.trainable = True
         self.fixed_net.trainable = False
 
@@ -130,9 +143,7 @@ class DDQN(object):
         self.hard_update()
         self.e_greedy_train = EpsilonGreedy(args)
         self.eval_epsilon = args.eval_epsilon
-        self.setup_network(args)
 
-    def setup_network(self, args):
         self.policy_net = self.train_net
         if args.fixed_policy:
             self.policy_net = self.fixed_net
@@ -168,20 +179,6 @@ class DDQN(object):
             self.train_net.load_weights(path)
         else:
             print('No model path')
-
-    def take_action_train(self, state, step):
-        epsilon = self.e_greedy_train.get_epsilon(step)
-        if epsilon > npr.uniform():
-            return npr.randint(0, self.action_dim)
-        else:
-            return self.policy_net.take_action(state).numpy()
-
-    def take_action_eval(self, state):
-        if self.eval_epsilon > npr.uniform():
-            return npr.randint(0, self.action_dim)
-        else:
-            action = self.policy_net.take_action(state).numpy()
-            return action
 
 
     def train(self, batch):
@@ -231,24 +228,52 @@ class DDQN(object):
                 pass
         grad = tape.gradient(loss, self.train_net.trainable_variables)
         #grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
+        grad = [egrad if egrad is not None else tf.zeros_like(trainable_var) for egrad, trainable_var in zip(grad, self.train_net.trainable_variables) ]
         self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
         return {
                 'loss': loss,
                 'Q': tf.reduce_max(Q),
                 'Q_target': tf.reduce_max(Q_target)
                 }
-class OptimisticDDQN(DDQN):
+
+    def train_info_str(self):
+        return ""
+
+
+class DDQN(DDQN_Base):
     def __init__(self, args):
-        super(OptimisticDDQN, self).__init__(args)
-        self.train_net = OptimisticMLP(args.obs_dim, args.action_dim, args.beta)
-        self.fixed_net = OptimisticMLP(args.obs_dim, args.action_dim, args.beta)
+        train_net = MLP(args.obs_dim, args.action_dim)
+        fixed_net = MLP(args.obs_dim, args.action_dim)
+        super(DDQN, self).__init__(train_net, fixed_net, args)
+
+    def take_action_train(self, state, step):
+        epsilon = self.e_greedy_train.get_epsilon(step)
+        self.train_epsilon = epsilon
+        if epsilon > npr.uniform():
+            return npr.randint(0, self.action_dim)
+        else:
+            return self.policy_net.take_action(state).numpy()
+
+    def take_action_eval(self, state):
+        if self.eval_epsilon > npr.uniform():
+            return npr.randint(0, self.action_dim)
+        else:
+            action = self.policy_net.take_action(state).numpy()
+            return action
+
+    def train_info_str(self):
+        return "Epsilon: {}".format(self.train_epsilon) 
+
+
+class OptimisticDDQN(DDQN_Base):
+    def __init__(self, args):
+        train_net = OptimisticMLP(args.obs_dim, args.action_dim, args.beta)
+        fixed_net = OptimisticMLP(args.obs_dim, args.action_dim, args.beta)
         self.beta = args.beta
-        self.setup_network(args)
+        super(OptimisticDDQN, self).__init__(train_net, fixed_net, args)
 
     def take_action_train(self, state, step):
         return self.policy_net.take_action_train(state).numpy()
 
     def take_action_eval(self, state):
         return self.policy_net.take_action(state).numpy()
-
-

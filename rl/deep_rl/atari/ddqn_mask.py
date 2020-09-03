@@ -151,7 +151,7 @@ class DDQN(object):
         if self.clip_grad:
             grad = [tf.clip_by_value(e, -1., 1.) for e in grad]
 
-        grad = [grad if grad is not None else tf.zero_like(trainable_var) for egrad, trainable_var in zip(grad, self.train_net.trainable_variables) ]
+        grad = [egrad if egrad is not None else tf.zeros_like(trainable_var) for egrad, trainable_var in zip(grad, self.train_net.trainable_variables) ]
         self.optimizer.apply_gradients(zip(grad, self.train_net.trainable_variables))
         return {
                 'loss': loss,
