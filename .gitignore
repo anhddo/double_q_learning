@@ -38,3 +38,6 @@ powershell/june60
 script/june60
 script/tmp
 tmp_bk/
+tex/thesis.bcf
+*.bcf
+*.xml

@@ -22,7 +22,6 @@
 \newcommand{\mbP}{\mathbb{P}}
 \newcommand{\mbV}{\mathbb{V}}
 \newcommand{\mbE}{\mathbb{E}}
-\newcommand{\E}{\mathbb{E}}
 \newcommand{\mcF}{\mathcal{F}}
 \DeclareMathOperator*{\argmax}{argmax} 
 \DeclareMathOperator*{\argmin}{argmin} 
@@ -180,40 +179,21 @@ By definition of probability measure, three property need to satisfied:
     = \mathbb{P}(A_1|B) + \mathbb{P}(A_2|B) \; \square
     \]
 \end{itemize}
-\section{Markov Decision Process.}
+\section{Puterman 1994.}
 \textbf{Cesaro limit}\\
 \[C-\lim_{N \rightarrow \infty} A_n = \lim_{N \rightarrow \infty} \frac{1}{N}\sum_{n=0}^{N-1}A_n\]
 \textbf{Eigenvalues and eigenvectors}.\\
 $(Q-v\mathbf{I})$
 \subsection{Classification of state}
-Let $\nu _{u } $ is the random number of time visits state s  
 \begin{enumerate}
-    \item State s is \textbf{recurrent (ergodic)} if and only if:
-        $$E_{s}\left\{\nu_{s}\right\}=\sum_{n=0}^{\infty} P^{n}(s \mid s)=\infty$$
-    \item State s is \textbf{transient} if  $\E _{s} \left(\nu _{s}\right) < \infty  $  
-    \item State j is \textbf{accessible} from state s $(s \rightarrow j)$ if $p^{n}(j \mid s)>0$ 
-    \item State s is \textbf{communicate} with state j if  $ \left(s \rightarrow j\right)$ or  $\left(j \rightarrow s \right) $ 
-    \item A subset C is \textbf{closed set}  if no state outside C accessible from any state inside C
-    \item Closed set is \textbf{irreducible} if no subset of C is closed.
+    \item Accessible
+        \item communicate
+    \item Closed set
+    \item Irreducible
 \end{enumerate}
 \subsection{MDP classification}
 \begin{enumerate}
-    \item \textbf{Ergodic} if transition matrix corresponding to \textbf{every} deterministic
-        MDP consists of a single ergodic class.
-    \item \textbf{Unichain} if the transition matrix corresponding to \textbf{every } deterministic
-        stationary policy is unichain, that is, a \textbf{single ergodic class}  plus a
-        possibly empty set of transient states;
-    \item \textbf{Communicating} if, for \textbf{every pair} of states s  
-        and j  in S,  there \textbf{exists} a deterministic stationary 
-        policy which j  is accessible from s
-    \item \textbf{Weakly communicating}  if there exists a \textbf{closed}
-        set of states, with each state in
-        that set accessible from every other state in that set under \textbf{some } deterministic
-stationary policy, plus a possibly empty set of 
-        states which is transient under every policy
-    \item \textbf{Multichain}    if the transition matrix corresponding to
-        \textbf{at  least one}    stationary policy contains \textbf{two or more}
-        closed irreducible recurrent classes  
+    \item Weakly communicating.
 \end{enumerate}
 \subsection{MDP.}
 \begin{enumerate}
@@ -348,6 +328,46 @@ iteratively updated with the observed data (policy evaluation).
 \caption{Optimistic value iteration for average reward problem}
 \label{algo:val_iter}
 \end{algorithm}
+
+\subsection{Experiment}
+In this section, we apply the value iteration algorithm on several classical control problems \autocite{gym}.
+To extract the feature of the given observation, we use multivariate Fourier basis features \autocite{fourier} of order 2.
+The experimental result is shown in \autoref{fig:experiment}
+
+\textbf{Acrobot}
+\autocite{acrobot}
+The acrobot is a system with two links pendulum, where only the second joint 
+between the two links is actuated. Initially, the links are hanging 
+downwards, and the goal is to swing the end of the lower link up to a given height.
+The environment has six observations, consists of the sine and cosine of the two rotational joint
+angles and the joint angular velocities. The action is either applying +1, 0 or -1 torque on the joint between
+the two pendulum links. 
+
+\textbf{CartPole} \autocite{cartpole} 
+In the Cartpole environment, a pole is attached by an unactuated joint to a cart,
+which moves along a frictionless rail. The system is controlled by pushing 
+the cart to the left or right.  The observation consists of the position 
+and velocity of the cart, pole angle, and pole velocity at the tip.
+The pendulum starts upright, and the goal is to prevent it from falling over. 
+
+%\begin{figure}[ht]
+%    \centering
+%    \begin{subfigure}[b]{0.45\textwidth}
+%        \centering
+%        \includegraphics[width=\textwidth]{image/Cartpole-v0-avg-reward}
+%        \caption{Cartpole}
+%        \label{fig:cartpole}
+%    \end{subfigure}
+%    \hfill
+%    \begin{subfigure}[b]{0.45\textwidth}
+%        \centering
+%        \includegraphics[width=\textwidth]{image/acrobot-v1}
+%        \caption{Acrobot}
+%        \label{fig:acrobot}
+%    \end{subfigure}
+%    \caption{Experimental result for \autoref{algo:pol_iter} (Policy iteration) and \autoref{algo:val_iter} (Value iteration) }
+%    \label{fig:experiment}
+%\end{figure}
 
 \printbibliography
 \end{document}
