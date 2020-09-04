@@ -149,6 +149,7 @@ if __name__ == '__main__':
     parser.add_argument("--update-target", type=int, default=1000)
     parser.add_argument("--update-freq", type=int, default=4)
     parser.add_argument("--buffer", type=int, default=100000)
+    parser.add_argument("--latent-buffer-size", type=int, default=50000)
     parser.add_argument("--batch", type=int, default=32)
     parser.add_argument("--n-run", type=int, default=5)
     parser.add_argument("--discount", type=float, default=0.99)
