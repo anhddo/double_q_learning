@@ -44,6 +44,8 @@ class OptimisticMLP(MLP):
         self.index = tf.Variable(tf.zeros((out_dim), dtype=tf.dtypes.int32), 
                 trainable=False)
 
+        self.min_clip, self.max_clip = args.min_clip, args.max_clip 
+        print(self.min_clip, self.max_clip)
         ##----------------------- ----------------------------------------------##
 
     @tf.function
@@ -78,6 +80,7 @@ class OptimisticMLP(MLP):
     @tf.function
     def call(self, state):
         Q, _ = self._call(state) 
+        Q = tf.clip_by_value(Q, clip_value_min=self.min_clip, clip_value_max=self.max_clip)
         return Q
 
     @tf.function
