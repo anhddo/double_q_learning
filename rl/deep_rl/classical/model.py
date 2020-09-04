@@ -34,11 +34,32 @@ class OptimisticMLP(MLP):
     """
     out_dim: number of action
     """
-    def __init__(self, input_dim, out_dim, beta):
+    def __init__(self, input_dim, out_dim, args):
         super(OptimisticMLP, self).__init__(input_dim, out_dim)
         self.M = tf.Variable(tf.eye(self.hidden_size, batch_shape=[out_dim]) * 10)
-        self.beta = beta
+        self.beta = args.beta
 
+        self.latent_buffer_size = args.latent_buffer_size 
+        self.latent_buffer = tf.Variable(tf.zeros((self.latent_buffer_size, out_dim, self.hidden_size)), trainable=False)
+        self.index = tf.Variable(tf.zeros((out_dim), dtype=tf.dtypes.int32), 
+                trainable=False)
+
+        ##----------------------- ----------------------------------------------##
+
+    @tf.function
+    def update_inverse_covariance(self, a, s):
+        s = tf.squeeze(s)
+        index_ = self.index[a]
+        x = self.latent_buffer[index_, a]
+        M_a = self.M[a]
+        M_a.assign(M_a + self._update_term(M_a, x) - self._update_term(M_a, s))
+        x.assign(s)
+        self.index[a].assign((self.index[a] + 1) % self.latent_buffer_size)
+
+    #@tf.function
+    #def update_inverse_covariance(self, a, s):
+    #    M_a = self.M[a]
+    #    M_a.assign(M_a - self._update_term(M_a, s))
 
     @tf.function
     def forward(self, x):
@@ -74,10 +95,6 @@ class OptimisticMLP(MLP):
         v = tf.transpose(s) @ A
         return (A @ s @ v) / (1. + v @ s)
 
-    @tf.function
-    def update_inverse_covariance(self, a, s):
-        M_a = self.M[a]
-        M_a.assign(M_a - self._update_term(M_a, s))
 
     @tf.function
     def _take_action(self, state):
@@ -267,8 +284,8 @@ class DDQN(DDQN_Base):
 
 class OptimisticDDQN(DDQN_Base):
     def __init__(self, args):
-        train_net = OptimisticMLP(args.obs_dim, args.action_dim, args.beta)
-        fixed_net = OptimisticMLP(args.obs_dim, args.action_dim, args.beta)
+        train_net = OptimisticMLP(args.obs_dim, args.action_dim, args)
+        fixed_net = OptimisticMLP(args.obs_dim, args.action_dim, args)
         self.beta = args.beta
         super(OptimisticDDQN, self).__init__(train_net, fixed_net, args)
 
