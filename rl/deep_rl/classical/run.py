@@ -10,6 +10,7 @@ import numpy as np
 import gym , argparse , sys , json , glob , time
 
 from rl.util import allow_gpu_growth, incremental_path, Logs, PrintUtil
+from rl.optimistic_vi.util import EnvWrapper
 from rl.algo import EpsilonGreedy
 from .model import DDQN, OptimisticDDQN
 from .replay_buffer import RingBuffer
@@ -52,6 +53,10 @@ def evaluation(args, agent):
 
 
 def train(args, train_index):
+    logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    file_writer = tf.summary.create_file_writer(logdir + "/metrics")
+    file_writer.set_as_default()
+
     args.log_path = incremental_path(join(args.log_dir, '*.json'))
     logs = Logs(args.log_path)
 
@@ -118,6 +123,10 @@ def train(args, train_index):
                 logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
                 logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
                 logs.train_score.append((step, last_score))
+
+                tf.summary.scalar("optimistic_mlp/Q", data=train_info['Q'].numpy(), step=step)
+                tf.summary.scalar("optimistic_mlp/loss", data=train_info['loss'].numpy(), step=step)
+                tf.summary.scalar("optimistic_mlp/train_score", data=last_score, step=step)
             eval_score = evaluation(args, agent)
             logs.eval_score.append((step, eval_score))
             logs.save()
@@ -199,7 +208,10 @@ if __name__ == '__main__':
         args.log_dir = join(args.save_dir, 'logs')
         os.makedirs(args.save_dir, exist_ok=True)
         os.makedirs(args.log_dir, exist_ok=True)
+    env = gym.make(args.env)
+    env = EnvWrapper(env)
     ##_____________________________________________________________________##
+    args.min_clip, args.max_clip = env.min_clip, env.max_clip
     print(args.save_dir)
     with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
         f.write(json.dumps(vars(args)))
