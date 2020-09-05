@@ -41,3 +41,4 @@ tmp_bk/
 tex/thesis.bcf
 *.bcf
 *.xml
+script/logs/
