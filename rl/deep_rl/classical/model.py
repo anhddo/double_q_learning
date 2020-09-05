@@ -1,6 +1,6 @@
 from tensorflow.keras import Model, losses, optimizers, Sequential
 import tensorflow as tf, numpy as np
-from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dense, BatchNormalization
 from rl.algo import EpsilonGreedy
 from rl.util import objectview
 import numpy.random as npr
@@ -14,12 +14,14 @@ class MLP(Model):
         self.hidden_size = 32
         self.fn1 = Dense(self.hidden_size, activation='relu')
         self.fn2 = Dense(self.hidden_size, activation='relu')
+        self.bn = BatchNormalization() 
         self.head = Dense(out_dim)
 
     @tf.function
     def call(self, x):
         x = self.fn1(x)
         x = self.fn2(x)
+        x = self.bn(x)
         x = self.head(x) 
         return x
 
@@ -37,6 +39,8 @@ class OptimisticMLP(MLP):
     def __init__(self, input_dim, out_dim, args):
         super(OptimisticMLP, self).__init__(input_dim, out_dim)
         self.M = tf.Variable(tf.eye(self.hidden_size, batch_shape=[out_dim]) * 10)
+        self.M0 = tf.Variable(tf.eye(self.hidden_size, batch_shape=[out_dim]) * 10)
+        self.beta = args.beta
         self.beta = args.beta
 
         self.latent_buffer_size = args.latent_buffer_size 
@@ -44,29 +48,38 @@ class OptimisticMLP(MLP):
         self.index = tf.Variable(tf.zeros((out_dim), dtype=tf.dtypes.int32), 
                 trainable=False)
 
-        self.min_clip, self.max_clip = args.min_clip, args.max_clip 
-        print(self.min_clip, self.max_clip)
-        ##----------------------- ----------------------------------------------##
+        self.cov_update_count = 0
 
-    @tf.function
-    def update_inverse_covariance(self, a, s):
-        s = tf.squeeze(s)
-        index_ = self.index[a]
-        x = self.latent_buffer[index_, a]
-        M_a = self.M[a]
-        M_a.assign(M_a + self._update_term(M_a, x) - self._update_term(M_a, s))
-        x.assign(s)
-        self.index[a].assign((self.index[a] + 1) % self.latent_buffer_size)
+        self.min_clip, self.max_clip = args.min_clip, args.max_clip 
+        ##----------------------- ----------------------------------------------##
 
     #@tf.function
     #def update_inverse_covariance(self, a, s):
+    #    s = tf.squeeze(s)
+    #    index_ = self.index[a]
+    #    x = self.latent_buffer[index_, a]
     #    M_a = self.M[a]
-    #    M_a.assign(M_a - self._update_term(M_a, s))
+    #    M_a.assign(M_a + self._update_term(M_a, x) - self._update_term(M_a, s))
+    #    x.assign(s)
+    #    self.index[a].assign((index_ + 1) % self.latent_buffer_size)
+
+    @tf.function
+    def update_inverse_covariance(self, a, s):
+        M_a = self.M[a]
+        delta_matrix = self._update_term(M_a, s)
+        M_a.assign(M_a - delta_matrix)
+        self.index = (self.index + 1) %  self.latent_buffer_size 
+        if self.index ==  0:
+            self.M = tf.identity(self.M0) 
+            self.M0 = tf.Variable(tf.eye(self.hidden_size, batch_shape=[out_dim]) * 10)
+        M_a = self.M0[a]
+        M_a.assign(M_a - delta_matrix)
 
     @tf.function
     def forward(self, x):
         x = self.fn1(x)
-        embeded_vector = self.fn2(x)
+        x = self.fn2(x)
+        embeded_vector = self.bn(x)
         Q = self.head(embeded_vector) 
         return Q, embeded_vector
 
@@ -140,6 +153,7 @@ class DDQN_Base(object):
         self.train_net.trainable = True
         self.fixed_net.trainable = False
 
+        self.train_info = None 
 
 
         if args.rms:
@@ -201,7 +215,7 @@ class DDQN_Base(object):
             print('No model path')
 
 
-    def train(self, batch):
+    def train_preprocess(self, batch):
         state, action, reward, next_state, done = zip(*batch)
         state = np.stack(state)
         next_state = np.stack(next_state)
@@ -215,10 +229,12 @@ class DDQN_Base(object):
             assert action.shape == (self.batch_size, 1)
             assert done.shape == (self.batch_size, 1)
             assert reward.shape == (self.batch_size, 1)
+        return (state, action, reward, next_state, done)
+         
 
-
-        
-        return self.train_(state, action, reward, next_state, done)
+    def train(self, batch):
+        state, action, reward, next_state, done = self.train_preprocess(batch)
+        self.train_info = self.train_(state, action, reward, next_state, done)
 
     @tf.function
     def train_(self, state, action, reward, next_state, done):
@@ -255,6 +271,16 @@ class DDQN_Base(object):
                 'Q': tf.reduce_max(Q),
                 'Q_target': tf.reduce_max(Q_target)
                 }
+
+
+
+    def log(self, logs, step):
+        if self.train_info:
+            logs.loss.append((step, round(float(self.train_info['loss'].numpy()), 3)))
+            logs.Q.append((step, round(float(self.train_info['Q'].numpy()), 3)))
+
+            tf.summary.scalar("train/Q", data=self.train_info['Q'], step=step)
+            tf.summary.scalar("train/loss", data=self.train_info['loss'], step=step)
 
     def train_info_str(self):
         return ""
@@ -297,3 +323,24 @@ class OptimisticDDQN(DDQN_Base):
 
     def take_action_eval(self, state):
         return self.policy_net.take_action(state).numpy()
+
+    def train(self, batch):
+        state, action, reward, next_state, done = self.train_preprocess(batch)
+        self.train_info = self.train_(state, action, reward, next_state, done)
+        _, z = self.policy_net.forward(state) 
+        self.train_info['bonus'] = tf.reduce_mean(self.policy_net.bonus(z))
+        self.train_info['z'] = tf.reduce_max(tf.abs(z))
+        self.train_info['cov'] = tf.reduce_max(tf.abs(self.policy_net.M))
+
+
+    def log(self, logs, step):
+        super(OptimisticDDQN, self).log(logs, step)
+        tf.summary.scalar("train/bonus", data=self.train_info['bonus'], step=step)
+        tf.summary.scalar("train/z", data=self.train_info['z'], step=step)
+        tf.summary.scalar("train/cov", data=self.train_info['cov'], step=step)
+
+    #@tf.function
+    #def train_(self, state, action, reward, next_state, done):
+    #    tracking = super(OptimisticDDQN, self).train_(, action, reward, next_state, done)
+
+
