@@ -1,4 +1,4 @@
-#python -m rl.plot_result --save-dir tmp\Acrobot-v1\3 tmp\Acrobot-v1\5 tmp\Acrobot-v1\6 `
+5python -m rl.plot_result --save-dir tmp\Acrobot-v1\3 tmp\Acrobot-v1\5 tmp\Acrobot-v1\6 `
 #    --label ovi-b10 std-vi egreedy `
 #    --avg --plot-name bot.png
 #
