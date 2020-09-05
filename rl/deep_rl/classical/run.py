@@ -119,16 +119,14 @@ def train(args, train_index):
         ##-----------------------  TERMINAL SECTION ----------------------------##
 
         if step > args.epoch_step and step % args.epoch_step == 0:
-            if train_info:
-                logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
-                logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
-                logs.train_score.append((step, last_score))
+            agent.log(logs, step)
 
-                tf.summary.scalar("optimistic_mlp/Q", data=train_info['Q'].numpy(), step=step)
-                tf.summary.scalar("optimistic_mlp/loss", data=train_info['loss'].numpy(), step=step)
-                tf.summary.scalar("optimistic_mlp/train_score", data=last_score, step=step)
+            logs.train_score.append((step, last_score))
             eval_score = evaluation(args, agent)
             logs.eval_score.append((step, eval_score))
+            tf.summary.scalar("env/train_score", data=last_score, step=step)
+            tf.summary.scalar("env/eval_score", data=eval_score, step=step)
+
             logs.save()
             #Save best model
             if eval_score > best_eval_score:
