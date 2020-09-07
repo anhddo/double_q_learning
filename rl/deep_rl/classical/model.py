@@ -40,6 +40,7 @@ class OptimisticMLP(MLP):
         super(OptimisticMLP, self).__init__(input_dim, out_dim)
         self.M = tf.Variable(tf.eye(self.hidden_size, batch_shape=[out_dim]) * 10)
         self.M0 = tf.Variable(tf.eye(self.hidden_size, batch_shape=[out_dim]) * 10)
+        self.identity_matrix = tf.Variable(tf.eye(self.hidden_size) * 10)
         self.beta = args.beta
         self.beta = args.beta
 
@@ -51,6 +52,7 @@ class OptimisticMLP(MLP):
         self.cov_update_count = 0
 
         self.min_clip, self.max_clip = args.min_clip, args.max_clip 
+        self.out_dim = out_dim
         ##----------------------- ----------------------------------------------##
 
     #@tf.function
@@ -68,10 +70,11 @@ class OptimisticMLP(MLP):
         M_a = self.M[a]
         delta_matrix = self._update_term(M_a, s)
         M_a.assign(M_a - delta_matrix)
-        self.index = (self.index + 1) %  self.latent_buffer_size 
-        if self.index ==  0:
-            self.M = tf.identity(self.M0) 
-            self.M0 = tf.Variable(tf.eye(self.hidden_size, batch_shape=[out_dim]) * 10)
+        self.index[a].assign((self.index[a] + 1) %  self.latent_buffer_size)
+        if self.index[a] ==  0:
+            #self.M[a] = tf.identity(self.M0[a]) 
+            self.M[a].assign(tf.identity(self.M0[a]))
+            self.M0.assign(tf.Variable(tf.eye(self.hidden_size, batch_shape=[self.out_dim]) * 10))
         M_a = self.M0[a]
         M_a.assign(M_a - delta_matrix)
 
@@ -285,8 +288,20 @@ class DDQN_Base(object):
     def train_info_str(self):
         return ""
 
+class DDQN_NoExplore(DDQN_Base):
+    def __init__(self, args):
+        train_net = MLP(args.obs_dim, args.action_dim)
+        fixed_net = MLP(args.obs_dim, args.action_dim)
+        super(DDQN_NoExplore, self).__init__(train_net, fixed_net, args)
 
-class DDQN(DDQN_Base):
+    def take_action_train(self, state, step):
+        return self.policy_net.take_action(state).numpy()
+
+    def take_action_eval(self, state):
+        return self.policy_net.take_action(state).numpy()
+
+
+class DDQN_Epsilon_Greedy(DDQN_Base):
     def __init__(self, args):
         train_net = MLP(args.obs_dim, args.action_dim)
         fixed_net = MLP(args.obs_dim, args.action_dim)

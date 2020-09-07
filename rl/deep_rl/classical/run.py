@@ -12,7 +12,7 @@ import gym , argparse , sys , json , glob , time
 from rl.util import allow_gpu_growth, incremental_path, Logs, PrintUtil
 from rl.optimistic_vi.util import EnvWrapper
 from rl.algo import EpsilonGreedy
-from .model import DDQN, OptimisticDDQN
+from .model import DDQN_NoExplore, DDQN_Epsilon_Greedy, OptimisticDDQN
 from .replay_buffer import RingBuffer
 
 
@@ -68,10 +68,14 @@ def train(args, train_index):
 
     args.obs_dim = obs_dim
     args.action_dim = action_dim
-    if args.optimistic:
+    if args.no_explore:
+        agent = DDQN_NoExplore(args)
+    elif args.epsilon_greedy:
+        agent = DDQN_Epsilon_Greedy(args)
+    elif args.optimistic:
         agent = OptimisticDDQN(args)
     else:
-        agent = DDQN(args)
+        raise Exception("No secify algorithm")
 
 
     ep_reward = 0
@@ -171,6 +175,8 @@ if __name__ == '__main__':
     parser.add_argument("--pol", action='store_true')
 
     parser.add_argument("--optimistic", action='store_true')
+    parser.add_argument("--no-explore", action='store_true')
+    parser.add_argument("--epsilon-greedy", action='store_true')
     parser.add_argument("--beta", type=float, default=1)
 
 
