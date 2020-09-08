@@ -184,7 +184,6 @@ class DDQN_Base(object):
         self.train_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
         self.fixed_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
         self.hard_update()
-        self.eval_epsilon = args.eval_epsilon
 
         self.policy_net = self.train_net
         if args.fixed_policy:
@@ -312,6 +311,7 @@ class DDQN_Epsilon_Greedy(DDQN_Base):
         fixed_net = MLP(args.obs_dim, args.action_dim)
         super(DDQN_Epsilon_Greedy, self).__init__(train_net, fixed_net, args)
         self.e_greedy_train = EpsilonGreedy(args)
+        self.eval_epsilon = args.eval_epsilon
 
     def take_action_train(self, state, step):
         epsilon = self.e_greedy_train.get_epsilon(step)
