@@ -51,7 +51,7 @@ class OptimisticMLP(MLP):
         self.beta = args.beta
 
         self.latent_buffer_size = args.latent_buffer_size 
-        self.latent_buffer = tf.Variable(tf.zeros((self.latent_buffer_size, out_dim, self.hidden_size)), trainable=False)
+        #self.latent_buffer = tf.Variable(tf.zeros((self.latent_buffer_size, out_dim, self.hidden_size)), trainable=False)
         self.index = tf.Variable(tf.zeros((out_dim), dtype=tf.dtypes.int32), 
                 trainable=False)
 
@@ -80,7 +80,7 @@ class OptimisticMLP(MLP):
         if self.index[a] ==  0:
             #self.M[a] = tf.identity(self.M0[a]) 
             self.M[a].assign(tf.identity(self.M0[a]))
-            self.M0.assign(tf.Variable(tf.eye(self.hidden_size, batch_shape=[self.out_dim]) * 10))
+            self.M0[a].assign(self.identity_matrix)
         M_a = self.M0[a]
         M_a.assign(M_a - delta_matrix)
 
@@ -184,7 +184,6 @@ class DDQN_Base(object):
         self.train_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
         self.fixed_net(tf.random.uniform(shape=[1, obs_dim], dtype=TF_TYPE))
         self.hard_update()
-        self.e_greedy_train = EpsilonGreedy(args)
         self.eval_epsilon = args.eval_epsilon
 
         self.policy_net = self.train_net
@@ -312,6 +311,7 @@ class DDQN_Epsilon_Greedy(DDQN_Base):
         train_net = MLP(args.obs_dim, args.action_dim)
         fixed_net = MLP(args.obs_dim, args.action_dim)
         super(DDQN_Epsilon_Greedy, self).__init__(train_net, fixed_net, args)
+        self.e_greedy_train = EpsilonGreedy(args)
 
     def take_action_train(self, state, step):
         epsilon = self.e_greedy_train.get_epsilon(step)
