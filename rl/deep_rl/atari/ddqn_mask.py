@@ -6,14 +6,15 @@
 
 import tensorflow as tf
 from tensorflow.keras import Model, losses, optimizers, Sequential
-from .model import CNN
-from .optimistic_model import OptimisticCNN
+from .model import CNN, OptimisticCNN
+from rl.algo import EpsilonGreedy
+import numpy.random as npr
 
-class DDQN(object):
+class DDQN_Base(object):
     """
     Double Q learning
     """
-    def __init__(self, args):
+    def __init__(self, train_net, fixed_net, args):
         self.debug = args.debug
         self.clip_grad = args.clip_grad
         self.action_dim = args.action_dim
@@ -29,12 +30,9 @@ class DDQN(object):
 
         self.tau = args.tau
 
-        if args.optimistic:
-            self.train_net = OptimisticCNN(self.action_dim, args.beta)
-            self.fixed_net = OptimisticCNN(self.action_dim, args.beta)
-        else:
-            self.train_net = CNN(self.action_dim)
-            self.fixed_net = CNN(self.action_dim)
+        self.train_net = train_net
+        self.fixed_net = fixed_net 
+
 
 
         self.train_net.trainable = True
@@ -76,6 +74,8 @@ class DDQN(object):
         if args.fixed_policy:
             self.policy_net = self.fixed_net
 
+        self.train_info = None
+
 
     def hard_update(self):
         self.fixed_net.set_weights(self.train_net.get_weights())
@@ -112,7 +112,8 @@ class DDQN(object):
 
     def train(self, batch):
         state, action, reward, next_state, done = batch
-        return self.train_(state, action, reward, next_state, done)
+        self.train_info = self.train_(state, action, reward, next_state, done)
+        return self.train_info
 
     @tf.function
     def train_(self, state, action, reward, next_state, done):
@@ -158,3 +159,75 @@ class DDQN(object):
                 'Q': tf.reduce_max(Q),
                 'Q_target': tf.reduce_max(Q_target)
                 }
+
+    def log(self, logs, step):
+        if self.train_info:
+            logs.loss.append((step, round(float(self.train_info['loss'].numpy()), 3)))
+            logs.Q.append((step, round(float(self.train_info['Q'].numpy()), 3)))
+
+            tf.summary.scalar("train/Q", data=self.train_info['Q'], step=step)
+            tf.summary.scalar("train/loss", data=self.train_info['loss'], step=step)
+
+
+class DDQN_Epsilon_Greedy(DDQN_Base):
+    def __init__(self, args):
+        train_net = CNN(args.action_dim)
+        fixed_net = CNN(args.action_dim)
+        super(DDQN_Epsilon_Greedy, self).__init__(train_net, fixed_net, args)
+        self.e_greedy_train = EpsilonGreedy(args)
+        self.eval_epsilon = args.eval_epsilon
+
+
+    def take_action_train(self, state, step):
+        epsilon = self.e_greedy_train.get_epsilon(step)
+        self.train_epsilon = epsilon
+        if epsilon > npr.uniform():
+            return npr.randint(0, self.action_dim)
+        else:
+            return self.policy_net.take_action(state).numpy()
+
+    def take_action_eval(self, state):
+        if self.eval_epsilon > npr.uniform():
+            return npr.randint(0, self.action_dim)
+        else:
+            action = self.policy_net.take_action(state).numpy()
+            return action
+
+    def train_info_str(self):
+        return "Epsilon: {}".format(self.train_epsilon) 
+
+
+class OptimisticDDQN(DDQN_Base):
+    def __init__(self, args):
+        train_net = OptimisticCNN(args.action_dim, args.beta, args)
+        fixed_net = OptimisticCNN(args.action_dim, args.beta, args)
+        self.beta = args.beta
+        super(OptimisticDDQN, self).__init__(train_net, fixed_net, args)
+
+    def take_action_train(self, state, step):
+        return self.policy_net.take_action_train(state).numpy()
+
+    def take_action_eval(self, state):
+        return self.policy_net.take_action(state).numpy()
+
+    def train(self, batch):
+        #state, action, reward, next_state, done = self.train_preprocess(batch)
+        state, action, reward, next_state, done = batch
+        self.train_info = self.train_(state, action, reward, next_state, done)
+        _, z = self.policy_net._call(state) 
+        self.train_info['bonus'] = tf.reduce_mean(self.policy_net.bonus(z))
+        self.train_info['z'] = tf.reduce_max(tf.abs(z))
+        self.train_info['cov'] = tf.reduce_max(tf.abs(self.policy_net.M))
+
+
+    def log(self, logs, step):
+        super(OptimisticDDQN, self).log(logs, step)
+        tf.summary.scalar("train/bonus", data=self.train_info['bonus'], step=step)
+        tf.summary.scalar("train/z", data=self.train_info['z'], step=step)
+        tf.summary.scalar("train/cov", data=self.train_info['cov'], step=step)
+
+    #@tf.function
+    #def train_(self, state, action, reward, next_state, done):
+    #    tracking = super(OptimisticDDQN, self).train_(, action, reward, next_state, done)
+
+

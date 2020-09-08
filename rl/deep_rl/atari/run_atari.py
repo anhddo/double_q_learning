@@ -8,14 +8,13 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 import tensorflow as tf
-from ..algo import EpsilonGreedy
+from rl.algo import EpsilonGreedy
 from datetime import datetime
-from ..util import allow_gpu_growth, incremental_path, \
+from rl.util import allow_gpu_growth, incremental_path, \
         Logs, PrintUtil, make_training_dir, save_setting
-from ..plot_result import log_plot
 from os.path import join, isdir
-from .atari.ddqn_mask import DDQN
-from .atari.replay_buffer import RingBuffer
+from .ddqn_mask import DDQN_Epsilon_Greedy, OptimisticDDQN
+from .replay_buffer import RingBuffer
 from timeit import default_timer as timer
 import numpy.random as npr
 import gym
@@ -75,10 +74,7 @@ def evaluation(args, agent, noop_action_index):
             total_time += episode_time
             n_episode += 1
             ep_reward = 0
-        if npr.uniform() < args.eval_exploration:
-            action = env.action_space.sample()
-        else:
-            action = agent._take_action(state[np.newaxis,...]) 
+        action = agent.take_action_eval(state[np.newaxis,...]) 
         img, reward, terminal, info = env.step(tf.squeeze(action).numpy())
         img = preprocess(img)
         state = np.concatenate((state[:, :, 1:], img[..., np.newaxis]), axis=2)
@@ -123,6 +119,16 @@ def record(args):
 
 
 def train(args):
+    if args.optimistic:
+        algo_name = "optimistic"
+    elif args.epsilon_greedy:
+        algo_name = "epsilon_greedy"
+
+    logdir = join('logs', args.env, algo_name,  datetime.now().strftime("%Y%m%d-%H%M%S"))
+
+    file_writer = tf.summary.create_file_writer(logdir)
+    file_writer.set_as_default()
+
     args.log_path = incremental_path(join(args.log_dir, '*.json'))
     logs = Logs(args.log_path)
 
@@ -135,16 +141,13 @@ def train(args):
     action_dim = env.action_space.n
 
     args.action_dim = action_dim
-    agent = DDQN(args)
 
-    agent.epsilon_greedy_action = EpsilonGreedy(
-                args.init_exploration,
-                args.final_exploration,
-                args.training_step, 
-                args.final_exploration_step, 
-                lambda :[env.action_space.sample()],
-                lambda s: agent._take_action(s)
-            ).action
+    if args.epsilon_greedy:
+        agent = DDQN_Epsilon_Greedy(args)
+    elif args.optimistic:
+        agent = OptimisticDDQN(args)
+    else:
+        raise Exception("Not match any algorithm")
 
     agent.load_model(args.load_model_path)
     agent.hard_update()
@@ -204,12 +207,12 @@ def train(args):
                         args.save_dir,
                         "Model path: {}".format(model_path),
                 ])
+            agent.log(logs, step)
             logs.eval_score.append((step, round(avg_score, 3)))
-            if train_info:
-                logs.loss.append((step, round(float(train_info['loss'].numpy()), 3)))
-                logs.Q.append((step, round(float(train_info['Q'].numpy()), 3)))
             logs.train_score.append((step, round(last_ep_reward, 3)))
-            logs.save()
+            tf.summary.scalar("env/train_score", data=last_ep_reward, step=step)
+            tf.summary.scalar("env/eval_score", data=avg_score, step=step)
+            #logs.save()
             ##______________________________________________________________________##
         if step > args.learn_start:
             if step % args.update_freq == 0:
@@ -224,13 +227,14 @@ def train(args):
 
                     
         #Run an epoch
-        if step < args.learn_start:
-            action = [env.action_space.sample()]
-        else:
-            if args.optimistic:
-                action = agent._take_action0(state[np.newaxis, ...])
-            else:
-                action, action_info = agent.epsilon_greedy_action(state[np.newaxis,...], step)
+        #if step < args.learn_start:
+        #    action = [env.action_space.sample()]
+        #else:
+        #    if args.optimistic:
+        #        action = agent._take_action0(state[np.newaxis, ...])
+        #    else:
+        #        action, action_info = agent.epsilon_greedy_action(state[np.newaxis,...], step)
+        action = agent.take_action_train(state[np.newaxis,...], step)
         img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
         # We set terminal flag is true every time agent loses life
         is_life_lost = info['ale.lives'] < current_lives
@@ -265,7 +269,7 @@ if __name__ == '__main__':
     parser.add_argument("--discount", type=float, default=0.99)
 
     parser.add_argument("--update-freq", type=int, default=4)
-    parser.add_argument("--update-target", type=int, default=10000)
+    parser.add_argument("--update-target", type=int, default=30000)
     parser.add_argument("--training-step", type=int, default=200000000)
     parser.add_argument("--epoch-step", type=int, default=250000)
     parser.add_argument("--eval-step", type=int, default=135000)
@@ -290,15 +294,17 @@ if __name__ == '__main__':
     parser.add_argument("--sgd", action='store_true')
     parser.add_argument("--clip-grad", action='store_true')
 
-    parser.add_argument("--init-exploration", type=float, default=1.)
-    parser.add_argument("--final-exploration", type=float, default=0.01)
-    parser.add_argument("--eval-exploration", type=float, default=0.001)
+
+    parser.add_argument("--max-epsilon", type=float, default=1)
+    parser.add_argument("--min-epsilon", type=float, default=0.01)
+    parser.add_argument("--eval-epsilon", type=float, default=0.001)
     parser.add_argument("--final-exploration-step", type=int, default=1000000)
 
     parser.add_argument("--dqn", action='store_true')
     parser.add_argument("--ddqn", action='store_true')
 
     parser.add_argument("--optimistic", action='store_true')
+    parser.add_argument("--epsilon-greedy", action='store_true')
     parser.add_argument("--beta", type=float, default=1)
 
     parser.add_argument("--name")
@@ -316,20 +322,6 @@ if __name__ == '__main__':
         make_training_dir(args)
         save_setting(args)
         print(args.save_dir)
-
-        #if args.tmp_dir:
-        #    dir_path = join(args.tmp_dir, args.env)
-        #    os.makedirs(dir_path, exist_ok=True)
-
-        #    args.save_dir = incremental_path(dir_path, is_dir=True)
-        #    args.model_dir = join(args.save_dir, 'model')
-        #    args.log_dir = join(args.save_dir, 'logs')
-
-        #    os.makedirs(args.save_dir, exist_ok=True)
-        #    os.makedirs(args.log_dir, exist_ok=True)
-        ###______________________________________________________________________##
-        #with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
-        #    f.write(json.dumps(vars(args)))
 
         for _ in range(args.n_run):
             train(args)
