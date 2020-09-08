@@ -1,3 +1,9 @@
+# ======================================================================== 
+# Author: Anh Do
+# Mail: anhddo93 (at) gmail (dot) com 
+# Website: https://sites.google.com/view/anhddo 
+# ========================================================================
+
 from tensorflow.keras import Model, losses, optimizers, Sequential
 import tensorflow as tf, numpy as np
 from tensorflow.keras.layers import Dense, BatchNormalization
@@ -305,7 +311,7 @@ class DDQN_Epsilon_Greedy(DDQN_Base):
     def __init__(self, args):
         train_net = MLP(args.obs_dim, args.action_dim)
         fixed_net = MLP(args.obs_dim, args.action_dim)
-        super(DDQN, self).__init__(train_net, fixed_net, args)
+        super(DDQN_Epsilon_Greedy, self).__init__(train_net, fixed_net, args)
 
     def take_action_train(self, state, step):
         epsilon = self.e_greedy_train.get_epsilon(step)
