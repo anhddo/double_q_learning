@@ -104,6 +104,7 @@ def fill_plot(y, label, setting):
 def avg_plot(args):
     plt.grid()
     plt.gcf().set_size_inches(args.width, args.height)
+    plt.title(args.title)
 
     ##-------------------Get the result of different algorithm -------------##
     for save_dir_, plot_label in zip(args.save_dir, args.label):
@@ -111,10 +112,10 @@ def avg_plot(args):
         setting = log_info['setting']
         train_score = log_info['train_score']
         eval_score = log_info['eval_score']
-        if type(train_score) is np.ndarray:
-            fill_plot(train_score, plot_label + '-train_score', setting)
-        if type(eval_score) is np.ndarray:
-            fill_plot(eval_score, plot_label + '-eval_score', setting)
+        if args.train and type(train_score) is np.ndarray:
+            fill_plot(train_score, plot_label + ('-train_score' if args.desc else ""), setting)
+        if args.eval and type(eval_score) is np.ndarray:
+            fill_plot(eval_score, plot_label + ('-eval_score' if args.desc else ""), setting)
     ##______________________________________________________________________##
     plt.legend()
 
@@ -130,10 +131,10 @@ def line_plot(args):
         setting = log_info['setting']
         train_score = log_info['train_score']
         eval_score = log_info['eval_score']
-        if type(train_score) is np.ndarray:
-            fill_plot(train_score, plot_label + '-train_score', setting)
-        if type(eval_score) is np.ndarray:
-            fill_plot(eval_score, plot_label + '-eval_score', setting)
+        if args.train and type(train_score) is np.ndarray:
+            fill_plot(train_score, plot_label + '-train_score' if args.desc else "", setting)
+        if args.eval and type(eval_score) is np.ndarray:
+            fill_plot(eval_score, plot_label + '-eval_score' if args.desc else "", setting)
     ##______________________________________________________________________##
     plt.legend()
     plt.savefig(args.plot_name)
@@ -146,8 +147,12 @@ if __name__ == '__main__':
     parser.add_argument("--log-path")
     parser.add_argument("--label", nargs='+')
     parser.add_argument("--plot-name")
+    parser.add_argument("--title")
     parser.add_argument("--line", action='store_true')
     parser.add_argument("--avg", action='store_true')
+    parser.add_argument("--eval", action='store_true')
+    parser.add_argument("--train", action='store_true')
+    parser.add_argument("--desc", action='store_true')
     parser.add_argument("--width", type=float, default=20)
     parser.add_argument("--height", type=float, default=5)
     parser.add_argument("--plot-sample", type=int, default=1000)
