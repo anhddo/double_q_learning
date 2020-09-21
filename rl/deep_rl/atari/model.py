@@ -67,8 +67,7 @@ class OptimisticCNN(CNN):
         self.M0 = tf.Variable(tf.eye(self.hidden_size, batch_shape=[n_action]) * 10, trainable=False)
         self.identity_matrix = tf.Variable(tf.eye(self.hidden_size) * 10, trainable=False)
         self.beta = beta
-        self.index = tf.Variable(tf.zeros((n_action), dtype=tf.dtypes.int32), 
-                trainable=False)
+        self.index = tf.Variable(tf.zeros((n_action), dtype=tf.dtypes.int32), trainable=False)
         self.buffer = args.buffer
 
 
@@ -104,10 +103,12 @@ class OptimisticCNN(CNN):
         M_a = self.M[a]
         delta_matrix = self._update_term(M_a, s)
         M_a.assign(M_a - delta_matrix)
+
         self.index[a].assign((self.index[a] + 1) %  self.buffer)
         if self.index[a] ==  0:
-            self.M[a].assign(tf.identity(self.M0[a]))
+            self.M[a].assign(self.M0[a])
             self.M0[a].assign(self.identity_matrix)
+
         M_a = self.M0[a]
         M_a.assign(M_a - delta_matrix)
 

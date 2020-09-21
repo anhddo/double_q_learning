@@ -226,14 +226,6 @@ def train(args):
                     agent.hard_update()
 
                     
-        #Run an epoch
-        #if step < args.learn_start:
-        #    action = [env.action_space.sample()]
-        #else:
-        #    if args.optimistic:
-        #        action = agent._take_action0(state[np.newaxis, ...])
-        #    else:
-        #        action, action_info = agent.epsilon_greedy_action(state[np.newaxis,...], step)
         action = agent.take_action_train(state[np.newaxis,...], step)
         img, reward, end_episode, info = env.step(tf.squeeze(action).numpy())
         # We set terminal flag is true every time agent loses life

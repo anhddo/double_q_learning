@@ -20,14 +20,14 @@ class MLP(Model):
         self.hidden_size = 32
         self.fn1 = Dense(self.hidden_size, activation='relu')
         self.fn2 = Dense(self.hidden_size, activation='relu')
-        self.bn = BatchNormalization() 
+        #self.bn = BatchNormalization() 
         self.head = Dense(out_dim)
 
     @tf.function
     def call(self, x):
         x = self.fn1(x)
         x = self.fn2(x)
-        x = self.bn(x)
+        #x = self.bn(x)
         x = self.head(x) 
         return x
 
@@ -59,6 +59,7 @@ class OptimisticMLP(MLP):
 
         self.min_clip, self.max_clip = args.min_clip, args.max_clip 
         self.out_dim = out_dim
+        self.update_inv_cov = args.update_inv_cov
         ##----------------------- ----------------------------------------------##
 
     #@tf.function
@@ -73,22 +74,30 @@ class OptimisticMLP(MLP):
 
     @tf.function
     def update_inverse_covariance(self, a, s):
-        M_a = self.M[a]
-        delta_matrix = self._update_term(M_a, s)
-        M_a.assign(M_a - delta_matrix)
+        #s = tf.clip_by_value(s, clip_value_min=-10, clip_value_max=10)
+
+        #tf.print(tf.norm(s))
+        #norm = tf.norm(s)
+        #s = s / norm
+        #tf.print(s.shape, tf.norm(s), norm)
+        #return
+        #tf.print(tf.reduce_sum(s))
+        delta_matrix = self._update_term(self.M[a], s)
+        self.M[a].assign(self.M[a] - delta_matrix)
         self.index[a].assign((self.index[a] + 1) %  self.latent_buffer_size)
-        if self.index[a] ==  0:
-            #self.M[a] = tf.identity(self.M0[a]) 
-            self.M[a].assign(tf.identity(self.M0[a]))
-            self.M0[a].assign(self.identity_matrix)
-        M_a = self.M0[a]
-        M_a.assign(M_a - delta_matrix)
+        if self.update_inv_cov:
+            self.M0[a].assign(self.M0[a] - delta_matrix)
+            if self.index[a] ==  0:
+                self.M[a].assign(self.M0[a])
+                self.M0[a].assign(self.identity_matrix)
 
     @tf.function
     def forward(self, x):
         x = self.fn1(x)
-        x = self.fn2(x)
-        embeded_vector = self.bn(x)
+        embeded_vector = self.fn2(x)
+        #embeded_vector = embeded_vector / tf.norm(embeded_vector, axis=1)
+        #embeded_vector = self.bn(x)
+        #embeded_vector = self.bn(x)
         Q = self.head(embeded_vector) 
         return Q, embeded_vector
 
@@ -285,7 +294,6 @@ class DDQN_Base(object):
         if self.train_info:
             logs.loss.append((step, round(float(self.train_info['loss'].numpy()), 3)))
             logs.Q.append((step, round(float(self.train_info['Q'].numpy()), 3)))
-
             tf.summary.scalar("train/Q", data=self.train_info['Q'], step=step)
             tf.summary.scalar("train/loss", data=self.train_info['loss'], step=step)
 
@@ -359,6 +367,7 @@ class OptimisticDDQN(DDQN_Base):
         tf.summary.scalar("train/bonus", data=self.train_info['bonus'], step=step)
         tf.summary.scalar("train/z", data=self.train_info['z'], step=step)
         tf.summary.scalar("train/cov", data=self.train_info['cov'], step=step)
+        tf.print(self.policy_net.M)
 
     #@tf.function
     #def train_(self, state, action, reward, next_state, done):

@@ -9,7 +9,7 @@ import numpy.random as npr
 import numpy as np
 import gym , argparse , sys , json , glob , time
 
-from rl.util import allow_gpu_growth, incremental_path, Logs, PrintUtil
+from rl.util import allow_gpu_growth, incremental_path, Logs, PrintUtil, save_setting
 from rl.optimistic_vi.util import EnvWrapper
 from rl.algo import EpsilonGreedy
 from .model import DDQN_NoExplore, DDQN_Epsilon_Greedy, OptimisticDDQN
@@ -53,8 +53,16 @@ def evaluation(args, agent):
 
 
 def train(args, train_index):
-    logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-    file_writer = tf.summary.create_file_writer(logdir + "/metrics")
+    if args.optimistic:
+        algo_name = "optimistic"
+    elif args.epsilon_greedy:
+        algo_name = "epsilon_greedy"
+    elif args.no_explore: 
+        algo_name = "no_explore"
+
+    logdir = join('logs', args.env, algo_name,  datetime.now().strftime("%Y%m%d-%H%M%S"))
+
+    file_writer = tf.summary.create_file_writer(logdir)
     file_writer.set_as_default()
 
     args.log_path = incremental_path(join(args.log_dir, '*.json'))
@@ -174,9 +182,11 @@ if __name__ == '__main__':
     parser.add_argument("--vi", action='store_true')
     parser.add_argument("--pol", action='store_true')
 
-    parser.add_argument("--optimistic", action='store_true')
     parser.add_argument("--no-explore", action='store_true')
     parser.add_argument("--epsilon-greedy", action='store_true')
+
+    parser.add_argument("--optimistic", action='store_true')
+    parser.add_argument("--update-inv-cov", action='store_true')
     parser.add_argument("--beta", type=float, default=1)
 
 
@@ -217,6 +227,7 @@ if __name__ == '__main__':
     ##_____________________________________________________________________##
     args.min_clip, args.max_clip = env.min_clip, env.max_clip
     print(args.save_dir)
+    save_setting(args)
     with open(os.path.join(args.save_dir, 'setting.json'), 'w') as f:
         f.write(json.dumps(vars(args)))
 
