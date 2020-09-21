@@ -1,0 +1,389 @@
+\documentclass{beamer} 
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage[ruled,vlined, linesnumbered]{algorithm2e}
+\usetheme{madrid}
+\usepackage{graphicx}
+\author{Anh Do}
+\institute{}
+%\date{}
+\title{Chapter 5: Concentration measure}
+%Chapter 6: Explore then Commit Algorithm
+
+\newcommand{\f}{\mathcal{F}}
+\newcommand{\g}{\mathcal{G}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\x}{\mathbf{x}}
+\newcommand{\B}{\mathfrak{B}}
+\newcommand{\p}{\mathbb{P}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\V}{\mathbb{V}}
+\DeclareMathOperator*{\argmax}{argmax} 
+\DeclareMathOperator*{\argmin}{argmin} 
+
+\begin{document} 
+\begin{frame}{}
+   \maketitle 
+\end{frame}
+
+\begin{frame}{Outline}
+  \begin{itemize}
+    \item Tail probability
+    \item The inequality of Markov and Chebyshev
+    \item Subgaussion random variable  
+    \item The Cramer-Chenoff method
+    \item Hoeffding's Inequality
+    %\item Bernstein's Inequality  
+  \end{itemize}
+  Reference:  
+  \href{https://ocw.mit.edu/courses/mathematics/18-s997-high-dimensional-statistics-spring-2015/lecture-notes/MIT18_S997S15_Chapter1.pdf}{MIT ocw}
+\end{frame}
+
+
+
+
+\begin{frame}{Tail Probability}
+    Suppose that $X _{1}, X _{2}, \dots X _{n}$ is a sequence of independent
+    and identically distributred random variables. Assume that 
+    $\mu = \E\left[X\right] $ and  $\sigma ^{2} = \V \left[X\right] $  exist. \\
+   \begin{itemize}
+     \item  \textbf{Sample mean} or \textbf{empirical mean} 
+    $ \widehat{\mu} = \frac{1}{n}\sum_{i=1}^{n} X _{i}  $ 
+  \item  $\E_{}\left[\widehat{\mu} \right]= \mu $,
+    which mean that $\widehat{\mu} $ is an \textbf{unbiased estimator} of $\mu $ \\
+  \item  $ \V\left[\widehat{\mu} \right]= \E_{}\left[\left(\widehat{\mu} - \mu  \right)^2 \right] =\frac{\sigma ^2}{n} $ 
+    which mean that we expect the square distance between  
+    $\mu $ and $\widehat{\mu} $ shrink as n grows large at a rate of  $\frac{1}{n}$ 
+   \end{itemize}
+\end{frame}
+
+\begin{frame}{Tail probability}
+  \includegraphics[width=\textwidth]{img/tail_prob}
+  \begin{itemize}
+    \item  Tail probabilities $\p(\widehat{\mu} \geq \mu + \epsilon)$
+ and  $\p (\widehat{\mu} \leq \mu - \epsilon)$
+  \item 
+    $\p(| \widehat{\mu} - \mu | \geq \epsilon)$ is called a two-sided tail probabilites.
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}{The inequalites of Markov and Chebyshev}
+  If Y is a positive random variable with probability measure $\p _{Y}$,  
+  $\epsilon > 0 $ :
+  $
+  \epsilon \p(Y>\epsilon) = \epsilon \int _{\epsilon } ^{\infty } d\p_Y
+  \leq \epsilon \int _{0 } ^{\infty } d\p_Y  =\E_{}\left[Y\right] 
+  $ 
+
+  \begin{block}{Inequalities}
+  For any rv X and $\epsilon>0 $, the following holds: \\
+    \begin{itemize}
+      \item  (Markov): $\mathbb{P}(|X| \geq \varepsilon) \leq \frac{\mathbb{E}[|X|]}{\varepsilon}$ 
+\item   
+  (Chebyshev): $\mathbb{P}(|X-\mathbb{E}[X]| \geq \varepsilon) \leq \frac{\mathbb{V}[X]}{\varepsilon^{2}}$
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{}
+  Let $S_{n}=\sum_{t=1}^{n}\left(X_{t}-\mu\right)$ . The limiting distribution 
+  of $S_{n} / \sqrt{n \sigma^{2}}$ as $n \rightarrow \infty $ is a Gaussian 
+  with mean zero and unit variance. If  $Z \sim \mathcal{N}(0,1)$ then:
+  $\mathbb{P}(Z \geq u) \leq \sqrt{\frac{1}{2 \pi u^{2}}} \exp \left(-\frac{u^{2}}{2}\right)$ 
+  which gives:
+
+\begin{equation} 
+\begin{aligned}
+\mathbb{P}(\hat{\mu} \geq \mu+\varepsilon) &=\mathbb{P}\left(S_{n} / \sqrt{\sigma^{2} n} \geq \varepsilon \sqrt{n / \sigma^{2}}\right) \approx \mathbb{P}\left(Z \geq \varepsilon \sqrt{n / \sigma^{2}}\right) \\
+& \leq \sqrt{\frac{\sigma^{2}}{2 \pi n \varepsilon^{2}}} \exp \left(-\frac{n \varepsilon^{2}}{2 \sigma^{2}}\right)
+\end{aligned}
+\end{equation}
+ which is much smaller than what we obtained with Chebyshev's inequality
+   
+\end{frame}
+
+\begin{frame}{Subgaussian}
+  \begin{block}{Proposition}
+Let X be a Gaussian random variable with mean  $\mu $ and variance 
+     $\sigma $ then for any  $t > 0$, it holds:
+$$\mathbb{P}(X-\mu>t) \leq \frac{1}{\sqrt{2 \pi}} \frac{\mathrm{e}^{-\frac{t^{2}}{2 \sigma^{2}}}}{t}$$
+  \end{block}
+  \end{frame}
+
+\begin{frame}{}
+Proof:
+For $Z \sim \mathcal{N}(0,1)$, we have: 
+$$\begin{aligned}
+\mathbb{P}(Z>t) &=\frac{1}{\sqrt{2 \pi}} \int_{t}^{\infty} \exp \left(-\frac{x^{2}}{2}\right) \mathrm{d} x \\
+& \leq \frac{1}{\sqrt{2 \pi}} \int_{t}^{\infty} \frac{x}{t} \exp \left(-\frac{x^{2}}{2}\right) \mathrm{d} x \\
+&=\frac{1}{t \sqrt{2 \pi}} \int_{t}^{\infty}-\frac{\partial}{\partial x} \exp \left(-\frac{x^{2}}{2}\right) \mathrm{d} x \\
+&=\frac{1}{t \sqrt{2 \pi}} \exp \left(-t^{2} / 2\right)
+\end{aligned}$$
+
+    So for $X \sim \mathcal{N}(\mu, \sigma)  $ 
+$$\mathbb{P}(|X-\mu|>t) \leq \sqrt{\frac{2}{\pi}} \frac{\mathrm{e}^{-\frac{t^{2}}{2 \sigma^{2}}}}{t}$$
+
+   
+\end{frame}
+
+\begin{frame}{Sub-gaussian}
+  A Gaussian random variable Z has  \textbf{tails } that decay to zero
+  \textbf{exponentially} fast can also be seen in the moment generating function  \textbf{(MGF)} 
+$$M: s \mapsto M(s)=\mathbb{E}[\exp (s Z)]$$
+ Indeed in the case of a standard Gaussian random variable, we have:
+$$\begin{aligned}
+M(s)=\mathbb{E}[\exp (s Z)] &=\frac{1}{\sqrt{2 \pi}} \int e^{s z} e^{-\frac{z^{2}}{2}} \mathrm{d} z \\
+&=\frac{1}{\sqrt{2 \pi}} \int e^{-\frac{(z-s)^{2}}{2}+\frac{s^{2}}{2}} \mathrm{d} z \\
+&=e^{\frac{s^{2}}{2}}
+\end{aligned}$$
+
+If $X \sim \mathcal{N}\left(\mu, \sigma^{2}\right), \text { then } \mathbb{E}[\exp (s X)]=\exp \left(s \mu+\frac{\sigma^{2} s^{2}}{2}\right)$
+   
+\end{frame}
+
+\begin{frame}{Subgaussian Random Variables}
+
+  \begin{block}{Definition: Subgaussianity}
+A random variable X is a $\sigma$-subgaussion if for all $\lambda \in
+    \R$ 
+    , it holds that $$\mathbb{E}[\exp (\lambda X)] \leq \exp \left(\lambda^{2} \sigma^{2} / 2\right)$$
+  \end{block}
+
+$\sigma$-subgaussian is a class of distributions rather than a distribution. 
+
+  \begin{block}{Theorem 5.3}
+    if X is $\sigma$-subgaussian, then for any $\epsilon \geq 0 $:
+$$\mathbb{P}(X \geq \varepsilon) \leq \exp \left(-\frac{\varepsilon^{2}}{2 \sigma^{2}}\right)$$
+  \end{block}
+\end{frame}
+
+\begin{frame}{Proof theorem 5.3}
+  Proof: Using  \textbf{Cramer-Chernoff method} 
+
+\begin{equation} 
+\begin{aligned}
+\mathbb{P}(X \geq \varepsilon) &=\mathbb{P}(\exp (\lambda X) \geq \exp (\lambda \varepsilon)) & \\
+& \leq \mathbb{E}[\exp (\lambda X)] \exp (-\lambda \varepsilon) & \text { (Markov's inequality) } \\
+& \leq \exp \left(\frac{\lambda^{2} \sigma^{2}}{2}-\lambda \varepsilon\right) & \text { (Def. of subgaussianity) }
+\end{aligned}
+\end{equation}
+
+  $\lambda  \in \R$, we can choose  $\lambda$ to make  $exp(.)$ smallest.  \\
+  Choose $\lambda = \frac{\epsilon}{\sigma ^2}$, we get: 
+$
+\exp \left(-\frac{\varepsilon^{2}}{2 \sigma^{2}}\right)
+  \leq 
+  \exp \left(\frac{\lambda^{2} \sigma^{2}}{2}-\lambda \varepsilon\right) 
+  $ \hfill $\square$ 
+  \end{frame}
+
+
+
+\begin{frame}{}
+A similar inequality holds for the left tail. By using the union bound.
+ $\mathbb{P}(A \cup B) \leq \mathbb{P}(A)+\mathbb{P}(B)$
+  we also find that: $ \mathbb{P}(|X| \geq \varepsilon) \leq 2 \exp \left(-\varepsilon^{2} /\left(2 \sigma^{2}\right)\right)$ 
+
+  An equivalent from of these bounds is:
+  $\mathbb{P}\left(X \geq \sqrt{2 \sigma^{2} \log (1 / \delta)}\right) \leq \delta \quad \mathbb{P}\left(|X| \geq \sqrt{2 \sigma^{2} \log (2 / \delta)}\right) \leq \delta$ 
+   
+
+\end{frame}
+
+\begin{frame}{}
+\begin{block}{Lemma 5.4}
+  Suppose that X is $\sigma $ -subgaussian and $X _{1}, X _{2}$ are independent and $\sigma _{1} $ and $\sigma _{2} $ -subgaussian, repsectively, then:
+  \begin{itemize}
+    \item  $\E_{}\left[X\right] = 0$  and $\V \left[X\right] \leq \sigma ^2  $ 
+    \item  $cX$  is $|c| \sigma $ -subgaussian for all $c  \in \R $ 
+    \item  $X _{1} + X _{2}$ is $\sqrt{\sigma ^2 _{1} + \sigma _{2} ^2}$ -subgaussian
+  \end{itemize}
+
+\end{block}
+  Def. subgaussianity: If X is a  $\sigma$-subgaussian  $$\E_{}\left[\exp(\lambda  X) \right] \leq 
+  \exp( \lambda  ^2 \sigma ^2 /2)$$
+
+  \begin{itemize}
+    \item  $\V(cX)=c ^2 \sigma ^2$
+    \item  $\V(X_1 + X_2)=\sigma_1 ^2 + \sigma_2 ^2$
+  \end{itemize}
+
+
+\end{frame}
+
+\begin{frame}{Proof 5.4 , By MIT ocw}
+  \begin{block}{Lemma 5.4}
+   If $X$ is $b$ -subgaussian, then $\mathbb{E}(X)=0$ and $\operatorname{Var}(X) \leq b^{2}$
+  \end{block}
+PROOF. Using Taylor's expansion for the exponential function and Lebesgue's Dominated Convergence Theorem, for any $t \in \mathbb{R}$
+$$
+\sum_{n=0}^{\infty} \frac{t^{n}}{n !} \mathbb{E}\left(X^{n}\right)=\mathbb{E} e^{t X} \leq e^{b^{2} t^{2} / 2}=\sum_{n=0}^{\infty} \frac{b^{2 n} t^{2 n}}{2^{n} n !}
+$$
+Thus
+$$
+\mathbb{E}(X) t+\mathbb{E}\left(X^{2}\right) \frac{t^{2}}{2 !} \leq \frac{b^{2} t^{2}}{2}+o\left(t^{2}\right) \quad \text { as } t \rightarrow 0
+$$
+Dividing through by $t>0$ and letting $t \rightarrow 0$ we get $\mathbb{E}(X) \leq 0 .$ Dividing through by $t<0$ and letting $t \rightarrow 0$ we get $\mathbb{E}(X) \geq 0 .$ Thus $\mathbb{E}(X)=0 .$ Now that this is established, we divide through by $t^{2}$ and let $t \rightarrow 0,$ thus getting $\operatorname{Var}(X) \leq b^{2}$
+   
+\end{frame}
+
+
+
+\begin{frame}{}
+  \begin{block}{Corrollary 5.5}
+    Assume that $X_i -  \mu $ are independent, $\sigma $ -subgaussian random variables. Then for any $\epsilon \geq 0 $ 
+    \[
+       \mathbb{P}(\hat{\mu} \geq \mu+\varepsilon) \leq \exp \left(-\frac{n \varepsilon^{2}}{2 \sigma^{2}}\right) \quad \text { and } \quad \mathbb{P}(\hat{\mu} \leq \mu-\varepsilon) \leq \exp \left(-\frac{n \varepsilon^{2}}{2 \sigma^{2}}\right)
+    \]
+    where $\hat{\mu}=\frac{1}{n} \sum_{t=1}^{n} X_{t}$ 
+  \end{block}
+
+Proof By Lemma $5.4,$ it holds that $\hat{\mu}-\mu=\sum_{i=1}^{n}\left(X_{i}-\mu\right) / n$ is $\sigma / \sqrt{n}$ -subgaussian. Then apply Theorem $5.3 .$
+
+THEOREM $5.3 .$ If $X$ is $\sigma$ -subgaussian, then for any $\varepsilon \geq 0$
+$$
+\mathbb{P}(X \geq \varepsilon) \leq \exp \left(-\frac{\varepsilon^{2}}{2 \sigma^{2}}\right)
+$$
+\end{frame}
+
+\begin{frame}{Hoeffding's inequality}
+  \begin{block}{Hoeffding's inequality}
+  Let $X _{1}, X _{2}, \dots, X _{n}$ are independent and  $X _{n} \in  [a_t, b_t] $ almost surely with  $ a_t < b_t$ for all t, then:
+
+$$\mathbb{P}\left(\frac{1}{n} \sum_{t=1}^{n}\left(X_{t}-\mathbb{E}\left[X_{t}\right]\right) \geq \varepsilon\right) \leq \exp \left(\frac{-2 n^{2} \varepsilon^{2}}{\sum_{t=1}^{n}\left(b_{t}-a_{t}\right)^{2}}\right)$$
+
+  \end{block}
+
+  Proof: \\
+
+  Hoeffding Lemma:Excercise (5.11)\\
+  \begin{block}{Hoeffding Lemma}
+  If X is zero mean and $X \in [a, b]$ 
+   almost surely for constants  $a < b$, 
+  then X is $(b - a)/2$-subgaussian. 
+  Then we have Hoeffding's Lemma $$M_{X}(\lambda) \leq \exp \left(\lambda^{2}(b-a)^{2} / 8\right)$$
+  \end{block}
+\end{frame}
+
+\begin{frame}{Proof}
+  Let $Z_t=X_t - \mu_t $ is a zero mean r.v  $\Rightarrow Z_t  \in [a_t - \mu_t, b_t - \mu_t]$ 
+Using Cramer-Chenoff method:
+  \begin{equation} 
+    \begin{split} 
+      &\p \left(\lambda \sum_{t=1}^{n} Z_t \geq n\lambda\epsilon\right))
+      = \p \left((exp(\lambda \sum_{t=1}^{n} Z_t) \geq exp(n \lambda \epsilon)\right) \\
+      & \leq \E_{}\left[exp(\lambda \sum_{t=1}^{n} Z_t ) \right] 
+      / exp(\lambda n\epsilon) \leq 
+      exp \left(\lambda^{2}\sum_{t=1}^{n}(b_t-a_t)^{2}/8 - n \epsilon \lambda \right) 
+    \end{split} 
+  \end{equation}
+
+  Optimize RHS w.r.t $\lambda$, 
+  we have: $\lambda= \frac{4n \epsilon}{\sum_{t=1}^{n}(b_t-a_t)^{2}}$,
+  then:\\
+ $$ 
+    \p(\frac{1}{n} \sum_{t=1}^{n} Z_t \geq \epsilon) \leq 
+\exp \left(\frac{-2 n^{2} \varepsilon^{2}}{\sum_{t=1}^{n}\left(b_{t}-a_{t}\right)^2}\right)
+\quad \square
+$$ 
+\end{frame}
+
+
+\title{Chapter 6: The Explore then Commit algorithm}
+\begin{frame}{}
+  \maketitle
+\end{frame}
+
+\begin{frame}{Explore then Commit algorithm}
+For this chapter, as well as Chapters 7 to $9,$ we assume that all bandit instances are in $\mathcal{E}_{\mathrm{SG}}^{k}(1),$ which means the reward distribution for all arms is 1-subgaussian.
+\begin{algorithm}[H]
+  \textbf{Input} m. \\
+  In round t choose action:
+  \[
+A_{t}=\left\{\begin{array}{ll}(t \bmod k)+1, & \text { if } t \leq m k \\ \operatorname{argmax}_{i} \hat{\mu}_{i}(m k), & t>m k\end{array}\right.
+  \]
+  \caption{Explore then Commit algorithm}
+\end{algorithm}
+\end{frame}
+
+\begin{frame}{Regret bound}
+  Recall that $\mu_{i}$ is the mean reward when playing action $i$ and $\Delta_{i}=\mu^{*}-\mu_{i}$ is suboptimality gap between the mean of action $i$ and the optimal action. \textbf{(Chapter 4)} 
+\begin{block}{Theorem 6.1}
+When ETC is interacting with any 1-subgaussian bandit and $1 \leq m \leq n / k$:
+
+
+$$R_{n} \leq m \sum_{i=1}^{k} \Delta_{i}+(n-m k) \sum_{i=1}^{k} \Delta_{i} \exp \left(-\frac{m \Delta_{i}^{2}}{4}\right)$$
+\end{block}
+\end{frame}
+
+\begin{frame}{Proof}
+Without loss of generality, we assume the first arm is optimal $\mu_{1}=\mu^{*}=\max _{i} \mu_{i} .$ By the decomposition given in Chapter 4 the regret can be written as
+  $$R_{n}=\sum_{i=1}^{k} \Delta_{i} \mathbb{E}\left[T_{i}(n)\right] \quad $$
+$$\begin{aligned}
+\mathbb{E}\left[T_{i}(n)\right] &=m+(n-m k) \mathbb{P}\left(A_{m k+1}=i\right) \\
+& \leq m+(n-m k) \mathbb{P}\left(\hat{\mu}_{i}(m k) \geq \max _{j \neq i} \hat{\mu}_{j}(m k)\right)
+\end{aligned}$$
+     
+\end{frame}
+
+
+\begin{frame}{}
+The probability on the right-hand side is bounded by
+$$\begin{aligned}
+\mathbb{P}\left(\hat{\mu}_{i}(m k) \geq \max _{j \neq i} \hat{\mu}_{j}(m k)\right) & \leq \mathbb{P}\left(\hat{\mu}_{i}(m k) \geq \hat{\mu}_{1}(m k)\right) \\
+&=\mathbb{P}\left(\hat{\mu}_{i}(m k)-\mu_{i}-\left(\hat{\mu}_{1}(m k)-\mu_{1}\right) \geq \Delta_{i}\right)
+\end{aligned}$$
+   $\V(\widehat{\mu}_{i } - \widehat{\mu}_1) = \sqrt{2 \sigma ^2 /m  }= \sqrt{2/m}$
+  then  $\hat{\mu}_{i}(m k)-\mu_{i}-\left(\hat{\mu}_{1}(m k)-\mu_{1}\right) $ is $ \sqrt{2 / m}$-subgaussian. Apply theorem 5.3, we have:
+$$\mathbb{P}\left(\hat{\mu}_{i}(m k)-\mu_{i}-\hat{\mu}_{1}(m k)+\mu_{1} \geq \Delta_{i}\right) \leq \exp \left(-\frac{m \Delta_{i}^{2}}{4}\right)$$
+
+Substitute into the regret decomposition, we have:
+\[
+R_{n} \leq m \sum_{i=1}^{k} \Delta_{i}+(n-m k) \sum_{i=1}^{k} \Delta_{i} \exp \left(-\frac{m \Delta_{i}^{2}}{4}\right)
+\quad \square
+\]
+\end{frame}
+
+\begin{frame}{}
+  \begin{block}{Theorem 6.1}
+\[
+R_{n} \leq m \sum_{i=1}^{k} \Delta_{i}+(n-m k) \sum_{i=1}^{k} \Delta_{i} \exp \left(-\frac{m \Delta_{i}^{2}}{4}\right)
+\]
+  \end{block}
+
+The bound in Theorem 6.1 illustrates the trade-off between exploration and exploitation.
+  \begin{itemize}
+    \item  If $m$ is large, then the policy explores for too long, and the first term will be large.
+    \item  On the other hand, if $m$ is too small, then the probability that the algorithm commits to the wrong arm will grow, and the second term becomes large.
+   
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{}
+      The question is how to choose $m .$ Assume that $k=2$ and that the first arm is optimal so that $\Delta_{1}=0,$ and abbreviate $\Delta=\Delta_{2} .$ Then the bound in Theorem 6.1 simplifies to
+$$R_{n} \leq m \Delta+(n-2 m) \Delta \exp \left(-\frac{m \Delta^{2}}{4}\right) \leq m \Delta+n \Delta \exp \left(-\frac{m \Delta^{2}}{4}\right)$$
+
+Minimize RHS w.r.t m:
+  $$m=\max \left\{1,\left[\frac{4}{\Delta^{2}} \log \left(\frac{n \Delta^{2}}{4}\right)\right]\right\} \quad (6.5)$$
+
+  $$R_{n} \leq \min \left\{n \Delta, \Delta+\frac{4}{\Delta}\left(1+\max \left\{0, \log \left(\frac{n \Delta^{2}}{4}\right)\right\}\right)\right\} \quad (6.6)$$
+  Because $\log(n) < \sqrt{n}$. Then we can find a constant C > 0 so that:
+$$R_{n} \leq \Delta+C \sqrt{n}$$
+Because $\Delta \leq 1$ so:
+$$R_{n} \leq 1+C \sqrt{n}$$
+
+  Bounds of this type are called  \textbf{worst-case} ,  \textbf{problem free}  
+  or  \textbf{problem independent} 
+\end{frame}
+
+\begin{frame}{}
+
+  \includegraphics[width=0.9\textwidth]{img/etc_exp}
+   
+\end{frame}
+
+
+\end{document}
