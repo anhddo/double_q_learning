@@ -1,0 +1,325 @@
+\begin{algorithm}[H]
+\SetAlgoLined
+  \textbf{Input} : Scale parameter H, regularization parameter  $\lambda$, 
+  confidence level  $\delta  \in (0,1) $, the number of phase T.\\
+ \textbf{Initialization}: Let $\gamma=1-1 / H, \tilde{V}_{1}=H, \widetilde{Q}_{1}=H$ \\
+ \For{t= 1 \dots , T}{
+Calculate the empirical covariance matrix:  $M_{t}=\sum_{k=1}^{t-1} \phi\left(s_{k}, a_{k}\right) \phi\left(s_{k}, a_{k}\right)^{\top}+\lambda I$ \\
+Update the regularized least square estimate as:
+  \[
+    w_{t}=M_{t}^{-1} \sum_{k=1}^{t-1} \phi\left(s_{k}, a_{k}\right)\left[r\left(s_{k}, a_{k}\right)+\gamma \widetilde{V}_{t-1}\left(s_{k+1}\right)\right] 
+  \] \\
+Find the optimistic estimation of Q-function: $\widetilde{Q}_{t}(s, a)=\phi(s, a)^{\top} w_{t}+\beta_{t}(\delta)\|\phi(s, a)\|_{M_{t}^{-1}}$ \\
+  Take action: $a_{t}=\operatorname{argmax}_{a} \widetilde{Q}_{t}\left(s_{t}, a\right)$ and observe $s _{t+1}$ 
+  }
+ 
+ \caption{Optimistic value iteration for average reward problems (OVI)}
+\end{algorithm}
+\section{Sketch of proof}
+We bound the regret of OVI in average-reward MDPs in the following theorem.
+Theorem 4.1. Consider the optimistic value iteration algorithm with scale $H=T^{1 / 4}$, regularizer $\lambda>0,$ and confidence level $\delta \in(0,1) .$ For a weakly-communicating linear MDP, with probability at least $1-\delta,$ regret of the optimistic value iteration algorithm is bounded as
+$$
+\text {Regret}_{T}=\widetilde{O}\left(T^{3 / 4}\right)
+$$
+Here $\widetilde{O}$ hides terms that are polynomial in $d$ and $\lambda$ and polylogarithmic in $T$ and $1 / \delta .$
+Before showing the proof, we state some useful lemmas. Let $\gamma \in(0,1)$ be a constant. Let $\tilde{V}_{\pi}$ and $\widetilde{Q}_{\pi}$ be the $\gamma$ -discounted state and state-action value functions of a policy $\pi .$ Let $\tilde{V}_{*}$ and $\widetilde{Q}_{*}$ be the optimal value functions in this discounted MDP. These quantities satisfy the discounted versions of the Bellman equation and the Bellman optimality equation:
+$$
+\begin{array}{ll}
+\widetilde{Q}_{\pi}(s, a)=r(s, a)+\gamma P_{s, a} \widetilde{V}_{\pi}, & \tilde{V}_{\pi}(s)=\widetilde{Q}_{\pi}(s, \pi) \\
+\tilde{Q}_{*}(s, a)=r(s, a)+\gamma P_{s, a} \tilde{V}_{*}, & \tilde{V}_{*}(s)=\max _{a} \widetilde{Q}_{*}(s, a)
+\end{array}
+$$
+Lemma 4.1 (Lemma 2 of Wei et al., 2019). The optimal value function $\tilde{V}_{*}$ of the discounted MDP satisfies
+$$
+\operatorname{span}\left(\tilde{V}_{*}\right) \leq 2 \operatorname{span}\left(V_{*}\right), \quad\left|\lambda_{*}-(1-\gamma) \tilde{V}_{*}(s)\right| \leq(1-\gamma) \operatorname{span}\left(V_{*}\right), \forall s \in S
+$$
+Lemma 4.2 (Lemma 4 of Wei et al., 2019). For any trajectory $\left\{\left(s_{t}, a_{t}\right)\right\}_{t=1}^{T}$, with probability at least $1-\delta$
+$$
+\sum_{t=1}^{T}\left(\widetilde{Q}_{*}\left(s_{t}, a_{t}\right)-\gamma \widetilde{V}_{*}\left(s_{t}\right)-r\left(s_{t}, a_{t}\right)\right) \leq 2 \operatorname{span}\left(V_{*}\right) \sqrt{2 T \log (1 / \delta)}+2 \operatorname{span}\left(V_{*}\right)
+$$
+
+The next lemma shows that the value function estimates are optimistic. The proof is in Appendix Lemma 4.3. With probability at least $1-\delta,$ for any $t$ and $(s, a), \widetilde{Q}_{t}(s, a) \geq \widetilde{Q}_{*}(s, a)$.
+
+Additional technical lemmas are given in Appendix $A$ We now provide a proof sketch for the main result. The full details are given in Appendix B We start with the following regret decomposition:
+$$
+\begin{aligned}
+\operatorname{Regret}_{T} &=\sum_{t=1}^{T}\left(\lambda_{*}-r\left(s_{t}, a_{t}\right)\right) \\
+&=\sum_{t=1}^{T}\left(\lambda_{*}-(1-\gamma) \tilde{V}_{*}\left(s_{t}\right)\right)+\sum_{t=1}^{T}\left(\tilde{V}_{*}\left(s_{t}\right)-\widetilde{Q}_{*}\left(s_{t}, a_{t}\right)\right)+\sum_{t=1}^{T}\left(\widetilde{Q}_{*}\left(s_{t}, a_{t}\right)-\gamma \widetilde{V}_{*}\left(s_{t}\right)-r\left(s_{t}, a_{t}\right)\right) \\
+& \leq(1-\gamma) \operatorname{span}\left(V_{*}\right) T+\sum_{t=1}^{T}\left(\tilde{V}_{*}\left(s_{t}\right)-\widetilde{Q}_{*}\left(s_{t}, a_{t}\right)\right)+2 \operatorname{span}\left(V_{*}\right) \sqrt{2 T \log (1 / \delta)}+2 \operatorname{span}\left(V_{*}\right)
+\end{aligned}
+$$
+where we use Lemmas 4.1 and 4.2 in the last step. Our main technical contribution is in bounding the second term under the linear MDP assumption. Note that in the work of Wei et al., 2019 , this term scales linearly in the number of state-action pairs, while in our results it will scale in the dimension of the feature vectors $\phi$ and $\sqrt{T}$. We focus on this term for the remainder of the proof.
+We start by writing the term as:
+$$
+\tilde{V}_{*}\left(s_{t}\right)-\widetilde{Q}_{*}\left(s_{t}, a_{t}\right)=\left(\tilde{V}_{*}\left(s_{t}\right)-\tilde{V}_{t}\left(s_{t}\right)\right)+\left(\tilde{V}_{t}\left(s_{t}\right)-\tilde{Q}_{*}\left(s_{t}, a_{t}\right)\right)
+$$
+The second part can be written as
+$$
+\tilde{V}_{t}\left(s_{t}\right)-\tilde{Q}_{*}\left(s_{t}, a_{t}\right)=\tilde{Q}_{t}\left(s_{t}, a_{t}\right)-\tilde{Q}_{*}\left(s_{t}, a_{t}\right)=\phi_{t}^{\top}\left(w_{t}-w_{*}\right)+\beta_{t}(\delta)\left\|\phi_{t}\right\|_{M_{t}^{-1}}
+$$
+where $\phi_{t}:=\phi\left(s_{t}, a_{t}\right)$ and $w_{*}$ are the parameters of the optimal action-value function $Q_{*}(s, a)=$ $\phi(s, a)^{\top} w_{*} .$ Letting $P_{k}=P_{s_{k}, a_{k}},$ it can be verified that $w_{*}$ satisfies
+$$
+w_{*}=M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k}\left(r_{k}+\gamma P_{k} \tilde{V}_{*}\right)+\lambda M_{t}^{-1}\left(\theta+\gamma \mu \tilde{V}_{*}\right)
+$$
+Using the above identity and the definition of $w_{t}$ in Algorithm [1] rearranging, and using linearity $\left(P_{k}=\phi_{k}^{\top} \mu\right),$ we have the following identity:
+
+$$
+\begin{aligned}
+\phi(s, a)^{\top}\left(w_{t}-w_{*}\right)=\gamma \phi(s, a)^{\top} M_{t}^{-1} S_{t}+\gamma P_{s, a}\left(\tilde{V}_{t-1}-\tilde{V}_{*}\right) & \\
+-\gamma \lambda \phi(s, a)^{\top} M_{t}^{-1} \mu\left(\widetilde{V}_{t-1}-\tilde{V}_{\pi}\right)-\lambda \phi(s, a)^{\top} M_{t}^{-1}\left(\theta+\gamma \mu \tilde{V}_{t-1}\right)
+\end{aligned}
+$$
+where $S_{t}=\sum_{k=1}^{t-1} \phi_{k}\left(\tilde{V}_{t-1}\left(s_{k+1}\right)-P_{k} \tilde{V}_{t-1}\right) .$ We can therefore write (4) as
+$$
+\begin{aligned}
+\tilde{V}_{t}\left(s_{t}\right)-\tilde{Q}_{*}\left(s_{t}, a_{t}\right)=\gamma \phi_{t}^{\top} M_{t}^{-1} S_{t}+\gamma P_{t}\left(\tilde{V}_{t-1}-\tilde{V}_{t+1}\right) & \\
+&+\gamma\left(\tilde{V}_{t+1}\left(s_{t+1}\right)-\tilde{V}_{*}\left(s_{t+1}\right)\right)+\eta_{t}+\beta_{t}(\delta)\left\|\phi_{t}\right\|_{M_{t}^{-1}} \\
+&-\gamma \lambda \phi_{t}^{\top} M_{t}^{-1} \mu\left(\widetilde{V}_{t-1}-\widetilde{V}_{*}\right)-\lambda \phi_{t}^{\top} M_{t}^{-1}\left(\theta+\gamma \mu \tilde{V}_{t-1}\right)
+\end{aligned}
+$$
+where $\eta_{t}$ is a zero-mean random variable. Plugging (5) into $(3),$ and using the fact that $(\gamma-$
+1) $\sum_{t=1}^{T}\left(\tilde{V}_{t}\left(s_{t}\right)-\tilde{V}_{*}\left(s_{t}\right)\right)<0$ due to optimism
+$$
+\begin{aligned}
+\sum_{t=1}^{T}\left(\tilde{V}_{*}\left(s_{t}\right)-\tilde{Q}_{*}\left(s_{t}, a_{t}\right)\right) \leq \gamma \sum_{t=1}^{T} \phi_{t}^{\top} & M_{t}^{-1} S_{t}+\sum_{t=1}^{T}\left(\eta_{t}+\beta_{t}\left\|\phi_{t}\right\|_{M_{t}^{-1}}\right)+\gamma \sum_{t=1}^{T} P_{t}\left(\tilde{V}_{t-1}-\tilde{V}_{t+1}\right) \\
+&-\lambda \sum_{t=1}^{T} \phi_{t}^{\top} M_{t}^{-1}\left(\theta+2 \gamma \mu \widetilde{V}_{t-1}-\gamma \mu \widetilde{V}_{*}\right)
+\end{aligned}
+$$
+By Lemma A.1 and Lemma A.3 the first two terms above scale as $O\left(\beta_{T}(\delta) \sqrt{T}\right)$, and the last term as $\lambda \sqrt{d}(1+3 H) F O(\log (T))$. It remains to bound $\sum_{t=1}^{T} P_{t}\left(\tilde{V}_{t-1}-\tilde{V}_{t+1}\right) .$ Note that
+$\sum_{t=1}^{T}\left\|P_{t}\left(\widetilde{V}_{t-1}-\tilde{V}_{t+1}\right)\right\|_{\infty} \leq \sum_{t=1}^{T}\left\|\tilde{V}_{t-1}-\tilde{V}_{t}\right\|_{\infty}+\sum_{t=1}^{T}\left\|\tilde{V}_{t}-\tilde{V}_{t+1}\right\|_{\infty} \leq H+2 \sum_{t=1}^{T}\left\|\tilde{V}_{t-1}-\tilde{V}_{t}\right\|_{\infty}$
+
+In the work of Wei et al., $2019, \sum_{t=1}^{T}\left\|V_{t-1}-V_{t}\right\|_{\infty}$ can be bounded by $H \times($ number of states $)$ because value estimates are decreasing and number of states is finite. Bounding this term in a linear MDP is considerably more challenging. By exploiting the special form of the value estimates
+$$
+V: S \rightarrow \mathbb{R}, \quad V(s)=\min \left\{\max _{a} w^{\top} \phi(s, a)+\beta\|\phi(s, a)\|_{M^{-1}}, H\right\}
+$$
+and given that by Lemma $[$ A. 2 , the total variation in bonus terms is bounded,
+$$
+\sum_{t=1}^{T} \max _{\phi}\left|\|\phi\|_{M_{t}^{-1}}-\|\phi\|_{M_{t+1}^{-1}}\right| \leq \frac{d}{\sqrt{\lambda}} \log (1+T)
+$$
+by algebraic manipulation relying on the recursive least-squares update and Lemmas $[\mathrm{A.} 1]$ and $\mathrm{A.} 3$ we show that for constants $C$ and $C^{\prime}$
+$$
+\sum_{t=1}^{T}\left\|\tilde{V}_{t}-\tilde{V}_{t+1}\right\|_{\infty} \leq \frac{C \log T+\beta_{T}(\delta) C^{\prime}}{1-\gamma}
+$$
+Combining terms, we get that the overall regret scales as
+$$
+\operatorname{Regret}_{T} \leq C(1-\gamma) T+\frac{\gamma C \log T+\beta_{T}(\delta) C^{\prime}}{1-\gamma}+\beta_{T}(\delta) \sqrt{T}
+$$
+Given that $\beta_{T}(\delta)=O(1 /(1-\gamma)),$ we get Regret $_{T}=\widetilde{O}\left(T^{3 / 4}\right)$ with the optimized choice of $\gamma=1-T^{-1 / 4}$
+
+
+
+
+
+
+
+\begin{lemma} 
+There exists a constant $c>0$ such that if $\beta_{t}(\delta)=c d H \sqrt{\log (2 d T / \delta)}$, then with probability at least $1-\delta$, for all $t,\left\|w_{t}\right\| \leq 2 H \sqrt{d t / \lambda}$, and for any $V$ generated by the optimistic value iteration algorithm, i.e. $V \in\left\{\tilde{V}_{1}, \ldots, \tilde{V}_{T}\right\},$ it holds that
+$$
+\left\|\sum_{k=1}^{t-1} \phi_{k}\left(V\left(s_{k}\right)-\mathbf{E}\left[V\left(s_{k}\right) \mid F_{k-1}\right]\right)\right\|_{M_{t}^{-1}} \leq \beta_{T}(\delta)
+$$
+Proof. The bound on the weight vectors follows by Lemma B.2 of Jin et al., 2019 . The second inequality follows by an argument similar to the one in Lemma $\mathrm{B} .3$ of Jin et al., 2019 . We obtain the inequality by $\mathbb{Z}$ and (8) and the choice of $\epsilon=d H / t$
+\end{lemma}
+
+\begin{lemma} 
+(Lemma 11 of Abbasi-Yadkori et al., 2011 ). If $\left\|\phi_{t}\right\| \leq L$ for all t and $\lambda \geq \max \left(1, L^{2}\right)$, , then
+\end{lemma}
+$$
+\sum_{k=1}^{t} \phi_{k}^{\top} M_{k}^{-1} \phi_{k} \leq 2 \log \frac{\operatorname{det}\left(M_{t}\right)}{\operatorname{det}(\lambda I)} \leq 2 d \log \left(1+t L^{2} /(d \lambda)\right)
+$$
+
+\begin{lemma} 
+Let $\left(u_{k}\right)$ be a sequence of scalars, and let $e_{t}=u_{t}-\phi_{t}^{\top} M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k} u_{k} .$ We have
+$$
+M_{t+1}^{-1} \sum_{k=1}^{t} \phi_{k} u_{k}=M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k} u_{k}+M_{t}^{-1} \phi_{t} e_{t} \cdot \frac{1}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}}
+$$
+
+Proof of Lemma $4.3 .$ We prove by induction. The induction base holds at $t=1,$ given that $\widetilde{Q}_{1}(s, a)=H \geq Q_{*}(s, a) .$ Next, assume that the statement holds at time $t .$ We will show that the statement also holds at time $t+1$
+Given that $\widetilde{Q}_{t}(s, a) \geq \widetilde{Q}_{*}(s, a),$ we get that
+$$
+\tilde{V}_{t}(s)=\max _{a} \widetilde{Q}_{t}(s, a) \geq \max _{a} \widetilde{Q}_{*}(s, a)=\tilde{V}_{*}(s)
+$$
+Let $\widehat{P}_{t}$ be as defined in $(2) .$ By Lemma A.1 $,$ the fact that $P_{s, a}=\phi(s, a)^{\top} \mu$ and $\left\|\tilde{V}_{t}\right\|_{\infty} \leq H,$ we obtain
+$$
+\begin{aligned}
+\widehat{P}_{t,(s, a)} \tilde{V}_{t}
+    =&\phi(s, a)^{\top} M_{t+1}^{-1} \sum_{k=1}^{t} \phi_{k} \tilde{V}_{t}\left(s_{k+1}\right) \\
+    =&\phi(s, a)^{\top} M_{t+1}^{-1} \sum_{k=1}^{t} \phi_{k}\left(\tilde{V}_{t}\left(s_{k+1}\right)-P_{k} \tilde{V}_{t}+P_{k} \tilde{V}_{t}\right) \\
+    =&\phi(s, a)^{\top} M_{t+1}^{-1} \sum_{k=1}^{t} \phi_{k}\left(\tilde{V}_{t}\left(s_{k+1}\right)-P_{k} \tilde{V}_{t}\right)+\phi(s, a)^{\top} M_{t+1}^{-1} \sum_{k=1}^{t} \phi_{k} \phi_{k}^{\top} \mu \tilde{V}_{t} \\
+    &\leq \beta_{T}(\delta)\|\phi(s, a)\|_{M_{t+1}^{-1}}+P_{s, a} \tilde{V}_{t}+\lambda\|\phi(s, a)\|_{M_{t+1}^{-1}} \cdot\left\|\mu \tilde{V}_{t}\right\|_{M_{t+1}^{-1}} \\
+    &\leq\|\phi(s, a)\|_{M_{t+1}^{-1}}\left(\beta_{T}(\delta)+\sqrt{\lambda d} H\right)+P_{s, a} \widetilde{V}_{t}
+\end{aligned}
+$$
+We get that:
+$$
+ \begin{aligned}
+\widetilde{Q}_{t+1}(s, a) &=r\left(s_{k}, a_{k}\right)+\gamma \widehat{P}_{t,(s, a)} \tilde{V}_{t}+\beta_{T}(\delta)\|\phi(s, a)\|_{M_{t+1}^{-1}} \\
+& \geq r\left(s_{k}, a_{k}\right)+\gamma P_{s, a} \tilde{V}_{t} \\
+& \geq r\left(s_{k}, a_{k}\right)+\gamma P_{s, a} \tilde{V}_{*} \\
+&=\widetilde{Q}_{*}(s, a)
+\end{aligned}
+$$
+ Proof. By the Sherman-Morrison formula:
+$$
+\begin{aligned}
+M_{t+1}^{-1} \sum_{k=1}^{t} \phi_{k} u_{k} &=M_{t}^{-1} \sum_{k=1}^{t} \phi_{k} u_{k}-\frac{1}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}} M_{t}^{-1} \phi_{t} \phi_{t}^{\top} M_{t}^{-1} \sum_{k=1}^{t} \phi_{k} u_{k} \\
+&=M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k} u_{k}+M_{t}^{-1} \phi_{t} u_{t}-\frac{1}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}} M_{t}^{-1} \phi_{t} \phi_{t}^{\top} M_{t}^{-1} \sum_{k=1}^{t} \phi_{k} u_{k} \\
+&=M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k} u_{k}+\frac{M_{t}^{-1} \phi_{t} u_{t}+M_{t}^{-1} \phi_{t} u_{t} \phi_{t}^{\top} M_{t}^{-1} \phi_{t}-M_{t}^{-1} \phi_{t}^{\top} M_{t}^{-1} \sum_{k=1}^{t} \phi_{k} u_{k}}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}} \\
+&=M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k} u_{k}+\frac{M_{t}^{-1} \phi_{t}\left(u_{t}-\phi_{t}^{\top} M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k} u_{k}\right)}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}} \\
+&=M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k} u_{k}+M_{t}^{-1} \phi_{t} e_{t} \cdot \frac{1}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}}
+\end{aligned}
+$$
+\end{lemma}
+We start with the following regret decomposition:
+\begin{equation} 
+\begin{aligned}
+\operatorname{Regret}_{T} &=\sum_{t=1}^{T}\left(\lambda_{*}-r\left(s_{t}, a_{t}\right)\right) \\
+  &=\sum_{t=1}^{T}\left(\lambda_{*}-(1-\gamma) \tilde{V}_{*}\left(s_{t}\right)\right)+\sum_{t=1}^{T}\left(\tilde{V}_{*}\left(s_{t}\right)-\widetilde{Q}_{*}\left(s_{t}, a_{t}\right)\right) \\
+  & \qquad +\sum_{t=1}^{T}\left(\widetilde{Q}_{*}\left(s_{t}, a_{t}\right)-\gamma \tilde{V}_{*}\left(s_{t}\right)-r\left(s_{t}, a_{t}\right)\right) \\
+& \leq(1-\gamma) \operatorname{span}\left(V_{*}\right) T+\sum_{t=1}^{T}\left(\tilde{V}_{*}\left(s_{t}\right)-\widetilde{Q}_{*}\left(s_{t}, a_{t}\right)\right) \\
+  &+2 \operatorname{span}\left(V_{*}\right) \sqrt{2 T \log (1 / \delta)}+2 \operatorname{span}\left(V_{*}\right)
+\end{aligned}
+\end{equation}
+
+ Given the linearity assumption, we have that for any policy 
+ $ \pi, \widetilde{Q}_{\pi}(s, a)=r(s, a)+\gamma P_{s, a} \tilde{V}_{\pi}= \phi(s, a)^{\top} w_{\pi}$
+  for some vector  $w_{\pi}$. Given observations $\left(s_{k}, a_{k}, r_{k}\right)_{k=1}^{t-1},$  define $ \phi_{k}=\phi\left(s_{k}, a_{k}\right), M_{t}= \lambda I+\sum_{k=1}^{t-1} \phi_{k} \phi_{k}^{\top}$  and $ P_{k}=P_{s_{k}, a_{k}}$\\
+
+We have $\phi _{s, a} ^T{w_\pi } = \widetilde{Q}_{\pi}(s, a)$, and 
+ $\widetilde{Q}_{\pi}(s, a)=r(s, a)+\gamma P_{s, a} \tilde{V}_{\pi}= \phi _{s, a}^T  \theta + \gamma  \phi _{s, a}^T \mu \widetilde{V}_{\pi}  $. Therefore, a solution of $w _{ \pi }=  \theta +  \gamma \mu \widetilde{V}_{\pi}$ 
+\begin{equation} 
+  \begin{split} 
+    w _{ \pi } &=  M_t ^{-1} M_t \left(\theta +  \gamma \mu \widetilde{V}_{\pi}\right) \\
+    &=  M_t ^{-1} \left[\lambda I+\sum_{k=1}^{t-1} \phi_{k} \phi_{k}^{\top}\right] \left(\theta + \gamma \mu \widetilde{V}_{\pi}\right) \\
+    &=  M_t ^{-1} \sum_{k=1}^{t-1} \phi_{k} \phi_{k}^{\top} \left(\theta + \gamma \mu \widetilde{V}_{\pi}\right)  +  \lambda M_{t}^{-1}\left(\theta+\gamma \mu \widetilde{V}_{\pi}\right)\\
+    &=  M_t ^{-1} \sum_{k=1}^{t-1} \phi_{k} \left(\phi_{k}^{\top} \theta + \gamma \phi_{k}^{\top} \mu \widetilde{V}_{\pi}\right)  +  \lambda M_{t}^{-1}\left(\theta+\gamma \mu \widetilde{V}_{\pi}\right)\\
+  \end{split} 
+\end{equation}
+Thus, we have:
+\[
+  w_{\pi}=M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k}\left(r_{k}+\gamma P_{k} \widetilde{V}_{\pi}\right)+\lambda M_{t}^{-1}\left(\theta+\gamma \mu \widetilde{V}_{\pi}\right) 
+\]
+
+
+The parameter estimate of the algorithm at time t is:
+\[
+  w_{t}=M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k}\left(r_{k}+\gamma \tilde{V}_{t-1}\left(s_{k+1}\right)\right) 
+\]
+
+Then  we have:
+$$
+\begin{aligned}
+  w_{t}-w_{\pi}  &=
+   M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k}\left(r_{k}+\gamma \tilde{V}_{t-1}\left(s_{k+1}\right)\right) 
+ - M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k}\left(r_{k}+\gamma P_{k} \widetilde{V}_{\pi}\right)-\lambda M_{t}^{-1}\left(\theta+\gamma \mu \widetilde{V}_{\pi}\right) \\
+   &= M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k}\left(\gamma \tilde{V}_{t-1}\left(s_{k+1}\right) - \gamma P_{k} \widetilde{V}_{\pi}\right) 
+ -\lambda M_{t}^{-1}\left(\theta+\gamma \mu \widetilde{V}_{\pi}\right)\\
+  & = \gamma M_{t}^{-1} \sum_{k=1}^{P-1} \phi_{k}\left(\tilde{V}_{t-1}\left(s_{k+1}\right)-P_{k} \tilde{V}_{t-1}+P_{k}\left(\tilde{V}_{t-1}-\tilde{V}_{\pi}\right)\right)-\lambda M_{t}^{-1}\left(\theta+\gamma \mu \tilde{V}_{\pi}\right)
+\end{aligned}
+$$
+Let $S_{t}=\sum_{k=1}^{t-1} \phi_{k}\left(\tilde{V}_{t-1}\left(s_{k+1}\right)-P_{k} \tilde{V}_{t-1}\right)$, we have: 
+
+\[
+  w_{t}-w_{\pi}  = \gamma M_{t}^{-1} S_{t}+\gamma M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k} P_{k}\left(\tilde{V}_{t-1}-\tilde{V}_{\pi}\right)-\lambda M_{t}^{-1}\left(\theta+\gamma \mu \tilde{V}_{\pi}\right)
+\]
+$$
+\begin{aligned}
+\phi(s, a)^{\top}\left(w_{t}-w_{\pi}\right)=\gamma \phi(s, a)^{\top} M_{t}^{-1} S_{t}+\gamma P_{s, a}\left(\tilde{V}_{t-1}-\tilde{V}_{\pi}\right) & \\
+-\gamma \lambda \phi(s, a)^{\top} M_{t}^{-1} \mu\left(\tilde{V}_{t-1}-\tilde{V}_{\pi}\right)-\lambda \phi(s, a)^{\top} M_{t}^{-1}\left(\theta+\gamma \mu \tilde{V}_{t-1}\right)
+\end{aligned}
+$$
+We write,
+$$
+ \tilde{V}_{*}\left(s_{t}\right)-\widetilde{Q}_{*}\left(s_{t}, a_{t}\right)=\left(\tilde{V}_{*}\left(s_{t}\right)-\tilde{V}_{t}\left(s_{t}\right)\right)+\left(\tilde{V}_{t}\left(s_{t}\right)-\tilde{Q}_{*}\left(s_{t}, a_{t}\right)\right)
+ $$
+ Given that  $\widetilde{Q}_{t}$   is optimistic, it holds that 
+ $\tilde{V}_{t}(s) \geq \widetilde{Q}_{t}\left(s, \pi_{*}(s)\right) \geq \widetilde{Q}_{*}\left(s, \pi_{*}(s)\right)=\widetilde{V}_{*}(s)$ 
+ Thus, we  can write the second term as: 
+$$
+\begin{aligned}
+\widetilde{V}_{t}\left(s_{t}\right)-\widetilde{Q}_{*}\left(s_{t}, a_{t}\right) &=\widetilde{Q}_{t}\left(s_{t}, a_{t}\right)-\widetilde{Q}_{*}\left(s_{t}, a_{t}\right) \\
+&=\phi_{t}^{\top}\left(w_{t}-w_{*}\right)+\beta\left\|\phi_{t}\right\|_{M_{t}^{-1}} \\
+&=\gamma \phi_{t}^{\top} M_{t}^{-1} S_{t}+\gamma P_{t}\left(\widetilde{V}_{t-1}-\widetilde{V}_{*}\right) 
+     -\gamma \lambda \phi_{t}^{\top} M_{t}^{-1} \mu\left(\tilde{V}_{t-1}-\tilde{V}_{*}\right)\\
+     &\quad -\lambda \phi_{t}^{\top} M_{t}^{-1}\left(\theta+\gamma \mu \tilde{V}_{t-1}\right)+\beta\left\|\phi_{t}\right\|_{M_{t}^{-1}} \\
+    &=\gamma \phi_{t}^{\top} M_{t}^{-1} S_{t}+\gamma P_{t}\left(\widetilde{V}_{t-1}-\tilde{V}_{t+1}\right) & \\
+    & \qquad +\gamma\left(\widetilde{V}_{t+1}\left(s_{t+1}\right)-\widetilde{V}_{*}\left(s_{t+1}\right)\right)+\eta_{t}+\beta\left\|\phi_{t}\right\|_{M_{t}^{-1}} \\
+    & \qquad -\gamma \lambda \phi_{t}^{\top} M_{t}^{-1} \mu\left(\widetilde{V}_{t-1}-\widetilde{V}_{*}\right)-\lambda \phi_{t}^{\top} M_{t}^{-1}\left(\theta+\gamma \mu \widetilde{V}_{t-1}\right)
+\end{aligned}
+$$
+Here, $\eta_{t}$ is a zero-mean random variable, defined as
+$$
+\eta_{t}=\gamma P_{t}\left(\tilde{V}_{t+1}-\tilde{V}_{*}\right)-\gamma\left(\tilde{V}_{t+1}\left(s_{t+1}\right)-\tilde{V}_{*}\left(s_{t+1}\right)\right)
+$$
+
+Plugging 12 into 11 and using the fact that $(\gamma-1) \sum_{t=1}^{T}\left(\tilde{V}_{t}\left(s_{t}\right)-\tilde{V}_{*}\left(s_{t}\right)\right)<0$ due to optimism,
+$$
+\begin{aligned}
+\sum_{t=1}^{T}\left(\widetilde{V}_{*}\left(s_{t}\right)-\widetilde{Q}_{*}\left(s_{t}, a_{t}\right)\right) \leq \gamma \sum_{t=1}^{T} \phi_{t}^{\top} & M_{t}^{-1} S_{t}+\gamma \sum_{t=1}^{T} P_{t}\left(\widetilde{V}_{t-1}-\tilde{V}_{t+1}\right)+\sum_{t=1}^{T}\left(\eta_{t}+\beta_{T}(\delta)\left\|\phi_{t}\right\|_{M_{t}^{-1}}\right) \\
+&-\lambda \sum_{t=1}^{T} \phi_{t}^{\top} M_{t}^{-1}\left(\theta+2 \gamma \mu \widetilde{V}_{t-1}-\gamma \mu \widetilde{V}_{*}\right)
+\end{aligned}
+$$
+By Lemma A. 1 and Lemma
+$$
+\sum_{t=1}^{T} \phi_{t}^{\top} M_{t}^{-1} S_{t} \leq \sum_{t=1}^{T}\left\|\phi_{t}\right\|_{M_{t}^{-1}} \cdot\left\|S_{t}\right\|_{M_{t}^{-1}} \leq \widetilde{O}\left(\beta_{T}(\delta) \sqrt{T}\right)
+$$
+$$
+\sum_{t=1}^{T}\left(\eta_{t}+\beta\left\|\phi_{t}\right\|_{M_{t}^{-1}}\right) \leq \widetilde{O}\left(\beta_{T}(\delta) \sqrt{T}\right)
+$$
+
+$$
+\begin{aligned} 
+    \lambda \sum_{t=1}^{T} \phi_{t}^{\top} M_{t}^{-1} \left(\theta+2 \gamma \mu \tilde{V}_{t-1}-\gamma \mu \tilde{V}_{*}\right) & \leq \lambda \sqrt{d}(1+3 H) F \sum_{t=1}^{T} \phi_{t}^{\top} M_{t}^{-1} \phi_{t}\\ 
+    & \leq \lambda \sqrt{d}(1+3 H) F O(\log (T))
+\end{aligned}
+$$
+It remains to bound $\sum_{t=1}^{T} P_{t}\left(\widetilde{V}_{t-1}-\tilde{V}_{t+1}\right) .$ Let $S_{t}^{\prime}=\sum_{k=1}^{t-1} \phi_{k}\left(\tilde{V}_{t-1}\left(s_{k+1}\right)-\tilde{V}_{t}\left(s_{k+1}\right)\right)-
+\sum_{k=1}^{t-1} \phi_{k} P_{k}\left(\tilde{V}_{t-1}-\tilde{V}_{t}\right)$ and $\phi:=\phi(s, a) .$ We can write
+$$
+\begin{aligned}
+\widetilde{Q}_{t}(s, a)=& \phi^{\top} w_{t}+\beta_{T}(\delta)\|\phi\|_{M_{t}^{-1}} \\
+    =& \phi^{\top} M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k}\left(r_{k}+\gamma \widetilde{V}_{t}\left(s_{k+1}\right)\right)+\beta_{T}(\delta)\|\phi\|_{M_{t}^{-1}}\\ 
+    &+\gamma \phi M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k}\left(\tilde{V}_{t-1}\left(s_{k+1}\right)-\tilde{V}_{t}\left(s_{k+1}\right)\right) \\
+=& \widetilde{Q}_{t+1}(s, a)-\frac{\phi^{\top} M_{t}^{-1} \phi_{t} e_{t}}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}}+\beta_{T}(\delta)\|\phi\|_{M_{t}^{-1}-\beta_{T}}(\delta)\|\phi\|_{M_{t+1}^{-1}} \\
+&+\gamma \phi^{\top} M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k}\left(\widetilde{V}_{t-1}\left(s_{k+1}\right)-\widetilde{V}_{t}\left(s_{k+1}\right)\right)\\
+=& \widetilde{Q}_{t+1}(s, a)-\frac{\phi^{\top} M_{t}^{-1} \phi_{t} e_{t}}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}}+\beta_{T}(\delta)\|\phi\|_{M_{t}^{-1}}-\beta_{T}(\delta)\|\phi\|_{M_{t+1}^{-1}} \\
+&+\gamma \phi^{\top} M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k} P_{k}\left(\widetilde{V}_{t-1}-\widetilde{V}_{t}\right)+\gamma \phi^{\top} M_{t}^{-1} S_{t}^{\prime} \\
+    =& \widetilde{Q}_{t+1}(s, a)-\frac{\phi^{\top} M_{t}^{-1} \phi_{t} e_{t}}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}}+\beta_{T}(\delta)\left(\|\phi\|_{M_{t}^{-1}}-\|\phi\|_{M_{t+1}^{-1}}\right)+\gamma P_{s, a}\left(\widetilde{V}_{t-1}-\widetilde{V}_{t}\right)\\
+    &+\gamma \phi^{\top} M_{t}^{-1} S_{t}^{\prime}
+\end{aligned}
+$$
+Here, we have used $w_{t}=M_{t}^{-1} \sum_{k=1}^{t-1} \phi_{k}\left(r_{k}+\gamma \tilde{V}_{t-1}\left(s_{k+1}\right)\right)$ in the second line, and Lemma $[$ A.4 $]$ ir the third line. Thus,
+
+$$
+ \begin{aligned}
+\left\|\tilde{V}_{t}-\tilde{V}_{t+1}\right\|_{\infty} \leq\left\|\widetilde{Q}_{t}-\widetilde{Q}_{t+1}\right\|_{\infty} 
+\leq  &\frac{\phi_{t}^{\top} M_{t}^{-1} \phi_{t}\left|e_{t}\right| F}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}}+\beta_{T}(\delta) \max _{\phi} \mid\|\phi\|_{M_{t}^{-1}}-\|\phi\|_{M_{t+1}}^{-1} \\
+& +\gamma\left\|\widetilde{V}_{t-1}-\widetilde{V}_{t}\right\|_{\infty}+\gamma\left|\phi^{\top} M_{t}^{-1} S_{t}^{\prime \prime}\right| \cdot\left\|\widetilde{V}_{t-1}-\widetilde{V}_{t}\right\|_{\infty}
+\end{aligned}
+$$
+
+where the second inequality follows by $1 /\|\phi\| \leq F$ and $S_{t}^{\prime \prime}=S_{t}^{\prime} /\left\|V_{t-1}-V_{t}\right\|_{\infty} .$ As $\left|\phi^{\top} M_{t}^{-1} S_{t}^{\prime \prime}\right|=$
+$\widetilde{O}\left(t^{-1 / 2}\right)$ with high probability and $\gamma\left(1+t^{-1 / 2}\right) \approx \gamma$ with the choice of $\gamma=1-t^{-1 / 4},$ by Lemmas A.2 $]$ and $[$ A.3 $]$ for constants $C$ and $C^{\prime}$
+$$
+\begin{aligned}
+\sum_{t=1}^{T}\left\|\tilde{V}_{t}-\tilde{V}_{t+1}\right\|_{\infty} & \leq \frac{1}{1-\gamma}\left(\sum_{t=1}^{T} \frac{\phi_{t}^{\top} M_{t}^{-1} \phi_{t}\left|e_{t}\right| F}{1+\phi_{t}^{\top} M_{t}^{-1} \phi_{t}}+\beta_{T}(\delta) \sum_{t=1}^{T} \max _{\phi}\left|\|\phi\|_{M_{t}^{-1}}-\|\phi\|_{M_{t+1}^{-1}}\right|\right) \\
+& \leq \frac{\left(C+C^{\prime} \beta_{T}(\delta)\right) \log T}{1-\gamma}
+\end{aligned}
+$$
+Thus,
+$$
+\begin{aligned}
+\sum_{t=1}^{T}\left\|P_{t}\left(\tilde{V}_{t-1}-\tilde{V}_{t+1}\right)\right\|_{\infty} & \leq \sum_{t=1}^{T}\left\|\tilde{V}_{t-1}-\tilde{V}_{t+1}\right\|_{\infty} \\
+& \leq \sum_{t=1}^{T}\left\|\tilde{V}_{t-1}-\tilde{V}_{t}\right\|_{\infty}+\sum_{t=1}^{T}\left\|\tilde{V}_{t}-\tilde{V}_{t+1}\right\|_{\infty} \\
+& \leq H+\frac{2\left(C+C^{\prime} \beta_{T}(\delta)\right) \log T}{1-\gamma}
+\end{aligned}
+$$
+By
+$$
+\sum_{t=1}^{T}\left(\tilde{V}^{*}\left(s_{t}\right)-\widetilde{Q}^{*}\left(s_{t}, a_{t}\right)\right) \leq \frac{2\left(C+C^{\prime} \beta_{T}(\delta)\right) \log T}{1-\gamma}+\widetilde{O}\left(\beta_{T}(\delta) \sqrt{T}\right)
+$$
+The regret is bounded as
+$$
+\operatorname{Regret}_{T} \leq C(1-\gamma) T+\frac{2\left(C+C^{\prime} \beta_{T}(\delta)\right) \log T}{1-\gamma}+\widetilde{O}\left(\beta_{T}(\delta) \sqrt{T}\right)
+$$
+We get Regret $_{T}=O\left(T^{3 / 4}\right)$ with the choice of $\gamma=1-T^{-1 / 4}$ and given that $\beta_{T}(\delta)=\widetilde{O}(1 /(1-\gamma))$.
+ \hfill $\square$

@@ -1,0 +1,54 @@
+This work focuses on no-regret learning in infinite-horizon undiscounted Markov Decision Processes (MDPs) with function approximation. We show that if we add an exploration bonus to the Bellman optimality equation, the corresponding value iteration algorithm achieve $\mathcal{O}\left(T^{3 / 4}\right)$ regret in linear MDPs (where rewards and dynamics are linear in some features). Existing theoretical results for averagereward MDPs either apply optimism to a tabular model of the transition dynamics (making them difficult to use with function approximation), or require stronger assumptions that circumvent the need for explicit exploration. Our work provides the first sample efficient learning algorithm for the average-reward setting with function approximation, without a simulator or additional assumptions.
+
+ \textbf{Problem definition. }
+For a set $B,$ let $\Delta_{B}$ be the space of probability distributions defined on $B .$ An infinite-horizon undiscounted MDP is a tuple $\langle S, A, P, r\rangle,$ where $S$ is the state space, $A$ is the action space, $P: S \times A \rightarrow \Delta_{S}$ is the transition kernel, and $r: S \times A \rightarrow \mathbb{R}$ is the reward function. We will assume that $P$ is unknown and that the reward function is either known or stochastic (rather than adversarial), so that it can be estimated from data. A policy $\pi$ is a mapping from states to distributions on actions. Let $\left\{\left(s_{t}^{\pi}, a_{t}^{\pi}\right)\right\}_{t=1,2, \ldots}$ be a trajectory obtained by executing a policy $\pi .$ The expected average reward of $\pi$ is defined as
+$$
+\lambda_{\pi}:=\lim _{T \rightarrow \infty} \mathbb{E}\left[\frac{1}{T} \sum_{t=1}^{T} r\left(s_{t}^{\pi}, a_{t}^{\pi}\right)\right]
+$$
+We assume the MDP is weakly-communicating. In a weakly-communicating MDP, the state space $S$ decomposes into two sets: in the first, each state is reachable from every other state in the set under some policy; in the second, all states are transient under all policies. Note that this is the weakest assumption under which the expected average reward of a policy is independent of the initial state (Bartlett \& Tewari, 2009 ).
+
+An optimal policy $\pi_{*}$ is defined as $\pi_{*}=\operatorname{argmax}_{\pi} \lambda_{\pi} .$ Let $\lambda_{*}$ be the expected average reward of the optimal policy. Let $\left\{\left(s_{t}, a_{t}\right)\right\}_{t=1,2, \ldots}$ a trajectory obtained by a reinforcement learning algorithm. The goal of a learning algorithm is to minimize the regret with respect to the optimal policy, defined as
+$$
+\operatorname{Regret}_{T}=\sum_{t=1}^{T}\left(\lambda_{*}-r\left(s_{t}, a_{t}\right)\right)
+$$
+
+An optimal policy $\pi_{*}$ is defined as $\pi_{*}=\operatorname{argmax}_{\pi} \lambda_{\pi} .$ Let $\lambda_{*}$ be the expected average reward of the optimal policy. Let $\left\{\left(s_{t}, a_{t}\right)\right\}_{t=1,2, \ldots}$ a trajectory obtained by a reinforcement learning algorithm. The goal of a learning algorithm is to minimize the regret with respect to the optimal policy, defined as
+$$
+\operatorname{Regret}_{T}=\sum_{t=1}^{T}\left(\lambda_{*}-r\left(s_{t}, a_{t}\right)\right)
+$$
+Value functions and value iteration. The value function of a stationary policy $\pi$ is given by
+$$
+V_{\pi}(s):=\lim _{T \rightarrow \infty} \mathbf{E}\left[\sum_{t=1}^{T}\left(r\left(s_{t}^{\pi}, a_{t}^{\pi}\right)-\lambda_{\pi}\right) \mid s_{1}^{\pi}=s\right]
+$$
+when the state-chain is aperiodic, and the Cesaro limit otherwise. The action-value function of a policy corresponds to the value of taking an action $a$ in state $s$ and then following the policy forever, and is given by
+$$
+Q_{\pi}(s, a)=r(s, a)-\lambda_{\pi}+\mathbf{E}_{s^{\prime} \sim P(\cdot \mid s, a)}\left[V_{\pi}\left(s^{\prime}\right) \mid s, a\right]
+$$
+The optimal policy $\pi_{*}$ and the corresponding value function $V_{*}$ satisfy the Bellman optimality equation:
+$$
+V_{*}(s)+\lambda_{*}=T V_{*}(s):=\max _{a}\left(r(s, a)+\mathbf{E}_{s^{\prime} \sim P(\cdot \mid s, a)}\left[V_{*}\left(s^{\prime}\right)\right]\right)
+$$
+Note that in average-reward MDPs, $V_{*}$ and $V_{\pi}$ are unique up to a constant. One popular algorithm for finding the optimal policy is value iteration, which iteratively updates values using the Bellman optimality operator $T$ as $V \leftarrow(T V-$ constant $)$ (e.g. (Gupta et al., 2015 ) ). At convergence, the optimal policy $\pi_{*}$ is deterministic, and given by $\pi_{*}(s)=\operatorname{argmax}_{a} r(s, a)+\mathbf{E}\left[V_{*}\left(s^{\prime}\right)\right] .$ Value
+
+iteration is guaranteed to converge and produce the optimal policy when the true dynamics are known and expectations can be computed exactly. However, these guarantees no longer hold in general in the presence of sample-based estimates and function approximation.
+
+Linear MDPs. Suppose that the agent is given a set of $d$ candidate features $\phi_{1}, \phi_{2}, \ldots, \phi_{d}: S \times A \rightarrow$
+R. The feature $\phi$ maps each state-action pair $(s, a)$ to a $d$ -dimensional vector
+$$
+\phi(s, a)=\left(\phi_{1}(s, a), \phi_{2}(s, a), \ldots, \phi_{d}(s, a)\right)^{\top} \in \mathbb{R}^{d}
+$$
+We assume the transition dynamics can be fully captured by those features functions. In detail, the transition dynamics admit the following linear representation. Assumption 1 (Linear MDPs). Consider a MDP instance $M=(S, A, P, r)$ and a feature map $\phi: S \times A \rightarrow \mathbb{R}^{d} .$ We assume $M$ admits a linear representation such that there exists some functions $\mu(\cdot)=\left(\mu_{1}(\cdot), \ldots, \mu_{d}(\cdot)\right)$ and a vector $\theta \in \mathbb{R}^{d},$ for every $s, a, s^{\prime}$
+$$
+P\left(s^{\prime} \mid s, a\right)=\phi(s, a)^{\top} \mu\left(s^{\prime}\right)=\sum_{i=1}^{d} \phi_{i}(s, a) \mu_{i}\left(s^{\prime}\right), \quad r(s, a)=\phi(s, a)^{\top} \theta
+$$
+This is a statistical modeling assumption that describes the low-dimensional structure of transition dynamics. Similar assumptions are also imposed in Cai et al., 2019 , Jin et al., 2019 L. F. Yang and Wang, 2019 , L. Yang and Wang, 2019 . Note that in linear MDPs, the action-value function $Q_{\pi}$ of any policy $\pi$ is linear in the features $\phi(s, a),$ i.e. $Q_{\pi}=\phi(s, a)^{\top} w_{\pi}$ for some vector $w_{\pi} .$ In addition, as pointed out in Jin et al., 2019 , L. Yang and Wang, 2019 , closeness of the Bellman operator under a function class (in this case linear) seems necessary in order for Bellman error to be zero.
+
+When stating results for linear MDPs, without loss of generality we will assume that $\|\phi(s, a)\|_{2}<1$ for any state-action pair $(s, a),$ that $\|\theta\|_{2} \leq \sqrt{d},$ and that $\sum_{i=1}^{d}\left\|\mu_{i}\right\|_{1}^{2} \leq d .$ We will assume that $\|\phi(s, a)\| \geq 1 / F$ for some positive constant $F>0$
+
+Let $\phi_{k}:=\phi\left(s_{k}, a_{k}\right),$ and let $\mathbf{1}_{s}$ be a length- $|S|$ binary indicator vector for state $s .$ Given a trajectory $\left\{\phi_{k}\right\}_{k=1}^{t}$ we can compute an estimate of the transition dynamics of a linear MDP as
+$$
+\widehat{P}_{t,(s, a)}=\phi(s, a)^{\top} M_{t+1}^{-1} \sum_{k=1}^{t} \phi_{k} \mathbf{1}_{s_{k+1}}^{\top}, \quad \text { where } M_{t+1}=\sum_{k=1}^{t} \phi_{k} \phi_{k}^{\top}+\lambda I
+$$
+We will rely on this estimate in the analysis, but our algorithm will not compute it explicitly.
+
+

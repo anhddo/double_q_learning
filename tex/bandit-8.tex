@@ -1,0 +1,412 @@
+\documentclass{beamer} 
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage[ruled,vlined, linesnumbered]{algorithm2e}
+\usetheme{madrid}
+\usepackage{graphicx}
+\author{Anh Do}
+\institute{}
+%\date{}
+\title{Chapter 8: The Upper Confidence Bound
+Algorithm: Asymptotic Optimality}
+
+\newcommand{\f}{\mathcal{F}}
+\newcommand{\g}{\mathcal{G}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\x}{\mathbf{x}}
+\newcommand{\B}{\mathfrak{B}}
+\newcommand{\p}{\mathbb{P}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\V}{\mathbb{V}}
+\newcommand{\I}{\mathbb{I}}
+\DeclareMathOperator*{\argmax}{argmax} 
+\DeclareMathOperator*{\argmin}{argmin} 
+
+\begin{document} 
+\begin{frame}{}
+   \maketitle 
+\end{frame}
+
+\begin{frame}{ $UCB( \delta) $}
+    The \textbf{index}:
+    \[
+      \mathrm{UCB}_{i}(t-1, \delta)=\left\{\begin{array}{ll}
+\infty & \text { if } T_{i}(t-1)=0 \\
+\hat{\mu}_{i}(t-1)+\sqrt{\frac{2 \log (1 / \delta)}{T_{i}(t-1)}} & \text { otherwise }
+\end{array}\right.   
+    \]
+
+\begin{algorithm}[H]
+ \textbf{Input } k and  $ \delta $\\
+    \For {$t  \in 1,\dots, n $} {
+Choose action $A_{t}=\operatorname{argmax}_{i} \mathrm{UCB}_{i}(t-1, \delta)$ \\
+Observe reward Xt and update upper confidence bounds \\
+}
+    \caption{ $UCB \left( \delta \right)$}
+\end{algorithm}
+    \begin{block}{Regret bound of  $UCB(\delta) $}
+    If  $ \delta= 1/n ^{2} $, then the regret of UCB on any  $\nu \in \mathcal{E}_{\mathrm{SG}}^{k}(1)$  environment, is bounded by
+    \[
+      R_{n} \leq 8 \sqrt{n k \log (n)}+3 \sum_{i=1}^{k} \Delta_{i}   
+    \]
+    \end{block}
+\end{frame}
+
+
+\begin{frame}{}
+\begin{algorithm}[H]
+\SetAlgoLined
+  \textbf{Input} : k \\
+    Choose each arm once \\
+ Subsequently choose :
+    \[
+      A_{t}=\operatorname{argmax}_{i}\left(\hat{\mu}_{i}(t-1)+\sqrt{\frac{2 \log f(t)}{T_{i}(t-1)}}\right)   
+    \]
+   \qquad where $f(t)=1+t \log ^{2}(t)$ 
+    \\
+ \caption{Asymptotically optimal UCB}
+    \label{aoucb}
+\end{algorithm}
+\end{frame}
+
+
+\begin{frame}{}
+    \begin{block}{THEOREM $8.1 .$}
+        For any 1 -subgaussian bandit, the regret of Algorithm \ref{aoucb} satisfies
+$$
+R_{n} \leq \sum_{i: \Delta_{i}>0} \inf _{\varepsilon \in\left(0, \Delta_{i}\right)} \Delta_{i}\left(1+\frac{5}{\varepsilon^{2}}+\frac{2(\log f(n)+\sqrt{\pi \log f(n)}+1)}{\left(\Delta_{i}-\varepsilon\right)^{2}}\right)
+$$
+    \end{block}
+
+    \pause
+\begin{block}{Properties}
+    \[
+      \limsup _{n \rightarrow \infty} \frac{R_{n}}{\log (n)} \leq \sum_{i: \Delta_{i}>0} \frac{2}{\Delta_{i}}   
+    \]
+     
+\end{block}
+
+\end{frame}
+
+\begin{frame}{}
+\begin{block}{Properties}
+    \[
+      \limsup _{n \rightarrow \infty} \frac{R_{n}}{\log (n)} \leq \sum_{i: \Delta_{i}>0} \frac{2}{\Delta_{i}}   
+    \]
+\end{block}
+    Choose $\varepsilon= \log ^{-1/4} \left(n\right)$. and using the fact that  $f(t)=1+t \log ^{2}(t)$, then 
+   $$
+    \begin{aligned}
+      \limsup _{n \rightarrow \infty} \frac{R_{n}}{\log (n)} 
+        &\leq \lim _{n \rightarrow \infty} \sum_{i: \Delta_{i}>0} \Delta_i \frac{2(\log f(n) + \sqrt{ \pi \log f(n)  } + 1)}{(\sqrt{\log(n)} \Delta_i - 1)^{2}}  \\
+        &= \lim _{n \rightarrow \infty} \sum_{i: \Delta_{i}>0} \Delta_i \frac{2(\log (n) + 2\log \log n   + \sqrt{ \pi \log f(n)  } + 1)}{(\sqrt{\log(n)} \Delta_i)^{2}}  \\
+        &=\sum_{i: \Delta_{i}>0} \frac{2}{\Delta_{i}}   
+    \end{aligned}
+$$
+    
+     
+\end{frame}
+
+
+
+\begin{frame}{Chapter 7}
+Choosing $\varepsilon=\Delta_{i} / 2$ inside the sum shows that
+$$
+R_{n} \leq \sum_{i: \Delta_{i}>0}\left(\Delta_{i}+\frac{1}{\Delta_{i}}(8 \log f(n)+8 \sqrt{\pi \log f(n)}+28)\right)
+$$
+Even more concretely, there exists some universal constant $C>0$ such that
+$$
+R_{n} \leq C \sum_{i: \Delta_{i}>0}\left(\Delta_{i}+\frac{\log (n)}{\Delta_{i}}\right)
+$$
+
+     
+\end{frame}
+
+\begin{frame}{Compare to the bound  $UCB( \delta) $}
+$$
+\mathbb{E}\left[T_{i}(n)\right] \leq u_{i}+1+n^{1-2 c^{2} /(1-c)^{2}}=\left[\frac{2 \log \left(n^{2}\right)}{(1-c)^{2} \Delta_{i}^{2}}\right]+1+n^{1-2 c^{2} /(1-c)^{2}} \cdot(7.10)
+$$
+All that remains is to choose $c \in(0,1)$. The second term will contribute a polynomial dependence on $n$ unless $2 c^{2} /(1-c)^{2} \geq 1 .$ However, if $c$ is chosen too close to $1,$ then the first term blows up. Somewhat arbitrarily we choose $c=1 / 2$ which leads to
+$$
+\mathbb{E}\left[T_{i}(n)\right] \leq 3+\frac{16 \log (n)}{\Delta_{i}^{2}}
+$$
+$$
+R_{n} \leq 3 \sum_{i=1}^{k} \Delta_{i}+\sum_{i: \Delta_{i}>0} \frac{16 \log (n)}{\Delta_{i}}
+$$
+The constant can not be better than 4:
+$$
+\frac{2 \log \left(n^{2}\right)}{(1-c)^{2} \Delta_{i}^{2}} \geq 
+\frac{4 \log \left(n\right)}{\Delta_{i}^{2}} 
+$$
+     
+\end{frame}
+
+
+\begin{frame}{}
+which by the same argument as in the proof of Theorem  7.2
+    leads a worst-case bound of  $R_{n} \leq C \sum_{i=1}^{k} \Delta_{i}+2 \sqrt{C n k \log (n)}$
+     $R_{n} \leq C \sum_{i=1}^{k} \Delta_{i}+2 \sqrt{C n k \log (n)}$\\
+     \textbf{Proof} :
+   $$
+\begin{aligned}
+R_{n} &=\sum_{i=1}^{k} \Delta_{i} \mathbb{E}\left[T_{i}(n)\right]=\sum_{i: \Delta_{i}<\Delta} \Delta_{i} \mathbb{E}\left[T_{i}(n)\right]+\sum_{i: \Delta_{i} \geq \Delta} \Delta_{i} \mathbb{E}\left[T_{i}(n)\right] \\
+& \leq n \Delta+C\sum_{i: \Delta_{i} \geq \Delta}\left( \Delta_{i}+\frac{ \log (n)}{\Delta_{i}}\right) \leq n \Delta+\frac{C k \log (n)}{\Delta}+ C\sum_{i} \Delta_{i}
+\end{aligned}
+$$
+    Choose $\Delta=\sqrt{Ck \log(n)/n }$ , we have
+     $R_{n} \leq C \sum_{i=1}^{k} \Delta_{i}+2 \sqrt{C n k \log (n)}$\\
+
+\end{frame}
+
+\begin{frame}{}
+
+    \[
+      \limsup _{n \rightarrow \infty} \frac{R_{n}}{\log (n)} \leq \sum_{i: \Delta_{i}>0} \frac{2}{\Delta_{i}}   \qquad (8.2)
+    \]
+     
+Choosing $\varepsilon=\Delta_{i} / 2$ inside the sum shows that
+$$
+    R_{n} \leq \sum_{i: \Delta_{i}>0}\left(\Delta_{i}+\frac{1}{\Delta_{i}}(8 \log f(n)+8 \sqrt{\pi \log f(n)}+28)\right) \qquad (8.3)
+$$
+    \begin{block}{}
+Taking the limit of the ratio of the bound in (8.3) and log(n) does not result
+in the same constant as in the theorem, which is the main justification for
+introducing the more complicated regret bound. You will see in Chapter 15
+that the asymptotic bound on the regret given in (8.2) is unimprovable in a
+strong sense.
+    \end{block}
+
+     
+\end{frame}
+
+\begin{frame}{}
+    \begin{block}{LEMMA $8.2 .$}
+Let $X_{1}, \ldots, X_{n}$ be a sequence of independent 1 -subgaussian random variables$, \hat{\mu}_{t}=\frac{1}{t} \sum_{s=1}^{t} X_{s}, \varepsilon>0, a>0$ and
+$$
+\kappa=\sum_{t=1}^{n} \mathbb{I}\left\{\hat{\mu}_{t}+\sqrt{\frac{2 a}{t}} \geq \varepsilon\right\}, \quad \kappa^{\prime}=u+\sum_{t=\lceil u\rceil}^{n} \mathbb{I}\left\{\hat{\mu}_{t}+\sqrt{\frac{2 a}{t}} \geq \varepsilon\right\}
+$$
+where $u=2 a \varepsilon^{-2} .$ Then it holds $\mathbb{E}[\kappa] \leq \mathbb{E}\left[\kappa^{\prime}\right] \leq 1+\frac{2}{\varepsilon^{2}}(a+\sqrt{\pi a}+1)$
+    \end{block}
+    \pause
+ \textbf{Intuition}: Since the $X_{i}$ are 1 -subgaussian and independent we have $\mathbb{E}\left[\hat{\mu}_{t}\right]=0,$ so we cannot expect $\hat{\mu}_{t}+\sqrt{2 a / t}$ to be smaller than $\varepsilon$ until $t$ is at least $2 a / \varepsilon^{2} .$
+\end{frame}{}
+
+\begin{frame}{}
+    \begin{block}{LEMMA $8.2 .$}
+Let $X_{1}, \ldots, X_{n}$ be a sequence of independent 1 -subgaussian random variables$, \hat{\mu}_{t}=\frac{1}{t} \sum_{s=1}^{t} X_{s}, \varepsilon>0, a>0$ and
+$$
+\kappa=\sum_{t=1}^{n} \mathbb{I}\left\{\hat{\mu}_{t}+\sqrt{\frac{2 a}{t}} \geq \varepsilon\right\}, \quad \kappa^{\prime}=u+\sum_{t=\lceil u\rceil}^{n} \mathbb{I}\left\{\hat{\mu}_{t}+\sqrt{\frac{2 a}{t}} \geq \varepsilon\right\}
+$$
+where $u=2 a \varepsilon^{-2} .$ Then it holds $\mathbb{E}[\kappa] \leq \mathbb{E}\left[\kappa^{\prime}\right] \leq 1+\frac{2}{\varepsilon^{2}}(a+\sqrt{\pi a}+1)$
+    \end{block}
+    Proof: We have:  $\E_{}\left[ \mathbb{I}\{A\}\right]=P(A)$ 
+    $$
+\begin{aligned}
+    \mathbb{E}[\kappa] &\leq \mathbb{E}\left[\kappa^{\prime}\right]=u+\sum_{t=\lceil u\rceil}^{n} \mathbb{P}\left(\hat{\mu}_{t}+\sqrt{\frac{2 a}{t}} \geq \varepsilon\right) 
+\end{aligned}
+$$
+         
+\end{frame}
+
+\begin{frame}{}
+    \begin{block}{Corollary $5.5 .$}
+ Assume that $X_{i}-\mu$ are independent, $\sigma$ -subgaussian random variables. Then for any $\varepsilon \geq 0$,
+$$
+\mathbb{P}(\hat{\mu} \geq \mu+\varepsilon) \leq \exp \left(-\frac{n \varepsilon^{2}}{2 \sigma^{2}}\right) \quad \text { and } \quad \mathbb{P}(\hat{\mu} \leq \mu-\varepsilon) \leq \exp \left(-\frac{n \varepsilon^{2}}{2 \sigma^{2}}\right)
+$$
+where $\hat{\mu}=\frac{1}{n} \sum_{t=1}^{n} X_{t}$
+    \end{block}
+
+\end{frame}
+
+\begin{frame}{}
+    \includegraphics[width=\textwidth]{img/bound_sum} 
+\end{frame}
+
+         
+\begin{frame}{}
+
+Proof By Corollary 5.5  we have:
+    $$
+\begin{aligned}
+    \mathbb{E}[\kappa] &\leq \mathbb{E}\left[\kappa^{\prime}\right]=u+\sum_{t=\lceil u\rceil}^{n} \mathbb{P}\left(\hat{\mu}_{t}+\sqrt{\frac{2 a}{t}} \geq \varepsilon\right) \\
+    &\leq u+\sum_{t=\lceil u\rceil}^{n} \exp \left(-\frac{t\left(\varepsilon-\sqrt{\frac{2 a}{t}}\right)^{2}}{2}\right) \\
+\end{aligned}
+$$
+If a functions $f$ is unimodal, we have the bound $\sum_{j=a}^{b} f(j) \leq \max _{s \in[a, b]} f(s)+\int_{a}^{b} f(s) d s$
+$$
+\begin{aligned}
+    &\leq 1+u+\int_{u}^{\infty} \exp \left(-\frac{t\left(\varepsilon-\sqrt{\frac{2 a}{t}}\right)^{2}}{2}\right) dt\\
+\end{aligned}
+$$
+\end{frame}
+
+\begin{frame}{}
+    Let $ s = \varepsilon \sqrt{t } - \sqrt{2a} $ and $u=2 a \varepsilon^{-2}$ 
+We have:    
+$$
+ 1+u+\int_{u}^{\infty} \exp \left(-\frac{t\left(\varepsilon-\sqrt{\frac{2 a}{t}}\right)^{2}}{2}\right) d t=1+\frac{2}{\varepsilon^{2}}(a+\sqrt{\pi a}+1)
+$$
+
+\end{frame}
+
+
+\begin{frame}{Decompose the the number of time playing arm i:  $T _{i}$}
+    Let $G _{i,t }= \{UCB _{1, t } > \mu _{1} - \varepsilon\}  
+    \cap \{UCB _{i, t } < \mu _{1} - \varepsilon\}  $ is a good event at time step i for arm 1 since  $UCB _{i, t } < UCB _{1, t }$ \\
+    Therefore, 
+    $G ^{c} _{i, t } = \{UCB _{1, t } \leq \mu _{1} - \varepsilon \}  \cup \{ UCB _{i, t } \geq \mu _{i } - \varepsilon\} $ 
+$$
+    T _{1}= \sum_{t=1}^{n} \I \{ A_{t }=i \} 
+    = \sum_{t=1}^{n} \left[\{\I( G_{i, t} \cap A_{t }= i \} + \I\{( G_{i, t}^{c} \cap A_{t }= i \} \right] 
+$$
+    The first term inside the sum will never happen since we can not have $UCB _{i, t } < UCB _{1, t } $ and $A _{t }= i $ happen at the same time, 
+    therefore we only have the second term left. \\
+    $\I \{E _{1}\}  \cup \{E _{2}\}  \leq \I \{E _{1}\} + E _{2}$. We have:
+   $$
+    \begin{aligned}
+        T _{i  } &\leq \sum_{t=1}^{n}
+        \left[
+            \I \{UCB _{1, t} < \mu _{1} - \varepsilon \cap A _{t } = i  \}
+            +
+            \I \{UCB _{i, t} > \mu _{1} - \varepsilon \cap A _{t } = i  \}
+        \right] \\
+    &\leq \sum_{t=1}^{n}
+        \left[
+            \I \{UCB _{1, t} \leq \mu _{1} - \varepsilon\}
+            +
+            \I \{UCB _{i, t} \geq \mu _{1} - \varepsilon \cap A _{t } = i  \}
+        \right] 
+    \end{aligned}
+$$
+
+     
+\end{frame}
+
+\begin{frame}{Decompose the the number of time playing arm i:  $T _{i}$}
+$$
+\begin{aligned}
+    T_{i}(n)&=\sum_{t=1}^{n} \mathbb{I}\left\{A_{t}=i\right\}\\ 
+    & \leq \sum_{t=1}^{n} \mathbb{I}\left\{\hat{\mu}_{1}(t-1)+\sqrt{\frac{2 \log f(t)}{T_{1}(t-1)}} \leq \mu_{1}-\varepsilon\right\} \\
+& \quad +\sum_{t=1}^{n} \mathbb{I}\left\{\hat{\mu}_{i}(t-1)+\sqrt{\frac{2 \log f(t)}{T_{i}(t-1)}} \geq \mu_{1}-\varepsilon \text { and } A_{t}=i\right\}
+\end{aligned}
+$$ 
+    $T_{i}(n)$ is decomposed into two terms.
+    \begin{itemize}
+        \item  The first measures the number of times the index of the optimal arm is less than $\mu_{1}-\varepsilon .$
+        \item  The second term measures the number of times that $A_{t}=i$ and its index is larger than $\mu_{1}-\varepsilon$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Bound the first term: No. of time index of optimal arm is less than  $\mu - \epsilon  $}
+   $$
+\begin{aligned}
+&\mathbb{E}\left[\sum_{t=1}^{n} \mathbb{I}\left\{\hat{\mu}_{1}(t-1)+\sqrt{\frac{2 \log f(t)}{T_{1}(t-1)}} \leq \mu_{1}-\varepsilon\right\}\right] \\
+    &= \mathbb{E}\left[\sum_{t=1}^{n} \mathbb{P}\left(\hat{\mu}_{1}(t-1)+\sqrt{\frac{2 \log f(t)}{T_{1}(t-1)}} \leq \mu_{1}-\varepsilon\right)\right] \\
+\end{aligned}
+$$
+    $T _{1 }(t-1)  \in [n] $ is a r.v takes value in a discrete set [n], therefore,
+   $$
+    \begin{aligned} 
+    &= \mathbb{E}\left[\sum_{t=1}^{n} \mathbb{P}\left(\bigcup _{s  \in [n] } \hat{\mu}_{1s}+\sqrt{\frac{2 \log f(t)}{s}} \leq \mu_{1}-\varepsilon\right)\right]\\
+        &\leq \sum_{t=1}^{n} \sum_{s=1}^{n} \mathbb{P}\left(\hat{\mu}_{1 s}+\sqrt{\frac{2 \log f(t)}{s}} \leq \mu_{1}-\varepsilon\right)\\ 
+    \end{aligned}
+$$
+\end{frame}
+
+\begin{frame}{ Bound the first term}
+    The apply the inequality for subgaussian, we have 
+   $$
+\begin{aligned}
+    &\leq \sum_{t=1}^{n} \sum_{s=1}^{n} \exp \left(-\frac{s\left(\sqrt{\frac{2 \log f(t)}{s}}+\varepsilon\right)^{2}}{2}\right)\\
+    & = \sum_{t=1}^{n} \sum_{s=1}^{n} \exp \left(-\log f(t)\right) \exp \left(\frac{-s \varepsilon ^{2}}{2}\right) \exp( - \varepsilon \sqrt{2 \log f(t) s } ) \\
+    & \leq \sum_{t=1}^{n} \frac{1}{f(t)} \sum_{s=1}^{n} \exp \left(-\frac{s \varepsilon^{2}}{2}\right) \leq \frac{5}{\varepsilon^{2}}
+\end{aligned}
+$$
+     
+\end{frame}
+
+
+\begin{frame}{Bound the first term}
+$$
+\sum_{t=1}^{n} \frac{1}{f(t)} \sum_{s=1}^{n} \exp \left(-\frac{s \varepsilon^{2}}{2}\right) \leq \frac{5}{\varepsilon^{2}}
+$$
+
+ $F=\sum_{s=1}^{n} \exp \left(-s \varepsilon^{2} / 2\right)$  
+    is a geometric series. Then we have $\frac{e ^{-a }}{1 - e ^{-a }} < \frac{1}{a}$, so  $F \leq \frac{2}{\varepsilon ^{2} }$ . \\
+    Choose  $f(t)=1 + t log^2 t$ 
+   $$
+\begin{aligned}
+    \sum_{t=1}^{n}\frac{1}{f(t)} &\leq \sum_{t=1}^{2}\frac{1}{f(t)} + \sum_{t=3}^{n}\frac{1}{t log^2 t} \\
+    &\leq \sum_{t=1}^{2}\frac{1}{f(t)} + \int_{2}^{n}\frac{1}{t log^2 t} dt \\
+    &\leq 1 + \frac{1}{1 + 2 log ^{2} 2} + \frac{1}{log(2)} \approx 2.95 
+    \quad \square
+\end{aligned}
+$$
+Therefore, 
+ $\sum_{t=1}^{n} \frac{1}{f(t)} \sum_{s=1}^{n} \exp \left(-\frac{s \varepsilon^{2}}{2}\right) \leq \frac{6}{\varepsilon^{2}}$
+
+\end{frame}
+
+{
+    \small
+\begin{frame}{Bound 2nd Term: No. of time $A_{t}=i$ and its index is larger than $\mu_{1}-\varepsilon$}
+    $$
+\begin{aligned}
+&\mathbb{E}\left[\sum_{t=1}^{n} \mathbb{I}\left\{\hat{\mu}_{i}(t-1)+\sqrt{\frac{2 \log f(t)}{T_{i}(t-1)}} \geq \mu_{1}-\varepsilon \text { and } A_{t}=i\right\}\right] \\
+&\leq \mathbb{E}\left[\sum_{t=1}^{n} \mathbb{I}\left\{\hat{\mu}_{i}(t-1)+\sqrt{\frac{2 \log f(n)}{T_{i}(t-1)}} \geq \mu_{1}-\varepsilon \text { and } A_{t}=i\right\}\right] \\
+\end{aligned}
+$$
+     The number of time playing arm i is $k \leq n$, therefore
+$$
+    \begin{aligned} 
+&\leq \mathbb{E}\left[\sum_{s=1}^{n} \mathbb{I}\left\{\hat{\mu}_{i s}+\sqrt{\frac{2 \log f(n)}{s}} \geq \mu_{1}-\varepsilon\right\}\right.\\
+&=\mathbb{E}\left[\sum_{s=1}^{n} \mathbb{I}\left\{\hat{\mu}_{i s}-\mu_{i}+\sqrt{\frac{2 \log f(n)}{s}} \geq \Delta_{i}-\varepsilon\right\}\right] \\
+    \end{aligned}
+$$
+
+We use lemma 8.2:
+$$
+\leq 1+\frac{2}{\left(\Delta_{i}-\varepsilon\right)^{2}}(\log f(n)+\sqrt{\pi \log f(n)}+1)
+$$
+\end{frame}
+}
+
+\begin{frame}{Sum up}
+Bound for the first term:
+    $$ 
+    \E_{}\left[ \sum_{t=1}^{n} \mathbb{I}\left\{A_{t}=i\right\}\right]
+    \leq\frac{5}{\varepsilon ^{2} } 
+    $$ 
+Bound for the second term:
+    $$ 
+\begin{aligned}
+    &\E_{}\left[ \sum_{t=1}^{n} \mathbb{I}\left\{\hat{\mu}_{1}(t-1)+\sqrt{\frac{2 \log f(t)}{T_{1}(t-1)}} \leq \mu_{1}-\varepsilon\right\} \right]\\
+     &\quad\leq 1+\frac{2}{\left(\Delta_{i}-\varepsilon\right)^{2}}(\log f(n)+\sqrt{\pi \log f(n)}+1)
+\end{aligned}
+    $$ 
+Therefore:
+   $$
+  \E \left[T_i(n)\right] \leq 
+1+\frac{5}{\varepsilon^{2}}+\frac{2(\log f(n)+\sqrt{\pi \log f(n)}+1)}{\left(\Delta_{i}-\varepsilon\right)^{2}} 
+$$
+$$
+ R_{n} \leq \sum_{i: \Delta_{i}>0} \inf _{\varepsilon \in\left(0, \Delta_{i}\right)} \Delta_{i}\left(1+\frac{5}{\varepsilon^{2}}+\frac{2(\log f(n)+\sqrt{\pi \log f(n)}+1)}{\left(\Delta_{i}-\varepsilon\right)^{2}}\right)
+$$
+\end{frame}
+
+\begin{frame}{Summary}
+AOUCB:
+$$
+\limsup _{n \rightarrow \infty} \frac{R_{n}}{\log (n)} \leq \sum_{i: \Delta_{i}>0} \frac{2}{\Delta_{i}}
+$$
+UCB:
+$$
+ \sum_{i: \Delta_{i}>0} \frac{4}{\Delta_{i}} \leq \limsup _{n \rightarrow \infty} \frac{R_{n}}{\log (n)}
+$$
+    Both algrithm the same regret order, but AOUCB have better regret since it has smaller the leading constant factor.
+\end{frame}
+
+\end{document}

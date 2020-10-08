@@ -298,7 +298,6 @@ $$
 \end{frame}
 
 \begin{frame}{Explore then Commit algorithm}
-For this chapter, as well as Chapters 7 to $9,$ we assume that all bandit instances are in $\mathcal{E}_{\mathrm{SG}}^{k}(1),$ which means the reward distribution for all arms is 1-subgaussian.
 \begin{algorithm}[H]
   \textbf{Input} m. \\
   In round t choose action:
@@ -309,81 +308,41 @@ A_{t}=\left\{\begin{array}{ll}(t \bmod k)+1, & \text { if } t \leq m k \\ \opera
 \end{algorithm}
 \end{frame}
 
-\begin{frame}{Regret bound}
-  Recall that $\mu_{i}$ is the mean reward when playing action $i$ and $\Delta_{i}=\mu^{*}-\mu_{i}$ is suboptimality gap between the mean of action $i$ and the optimal action. \textbf{(Chapter 4)} 
+\begin{frame}{}
 \begin{block}{Theorem 6.1}
 When ETC is interacting with any 1-subgaussian bandit and $1 \leq m \leq n / k$:
-
-
 $$R_{n} \leq m \sum_{i=1}^{k} \Delta_{i}+(n-m k) \sum_{i=1}^{k} \Delta_{i} \exp \left(-\frac{m \Delta_{i}^{2}}{4}\right)$$
 \end{block}
 \end{frame}
 
 \begin{frame}{Proof}
-Without loss of generality, we assume the first arm is optimal $\mu_{1}=\mu^{*}=\max _{i} \mu_{i} .$ By the decomposition given in Chapter 4 the regret can be written as
-  $$R_{n}=\sum_{i=1}^{k} \Delta_{i} \mathbb{E}\left[T_{i}(n)\right] \quad $$
+  $$R_{n}=\sum_{i=1}^{k} \Delta_{i} \mathbb{E}\left[T_{i}(n)\right] \quad \text{(Chapter 4)}$$
 $$\begin{aligned}
 \mathbb{E}\left[T_{i}(n)\right] &=m+(n-m k) \mathbb{P}\left(A_{m k+1}=i\right) \\
 & \leq m+(n-m k) \mathbb{P}\left(\hat{\mu}_{i}(m k) \geq \max _{j \neq i} \hat{\mu}_{j}(m k)\right)
 \end{aligned}$$
-     
-\end{frame}
-
-
-\begin{frame}{}
 The probability on the right-hand side is bounded by
 $$\begin{aligned}
 \mathbb{P}\left(\hat{\mu}_{i}(m k) \geq \max _{j \neq i} \hat{\mu}_{j}(m k)\right) & \leq \mathbb{P}\left(\hat{\mu}_{i}(m k) \geq \hat{\mu}_{1}(m k)\right) \\
 &=\mathbb{P}\left(\hat{\mu}_{i}(m k)-\mu_{i}-\left(\hat{\mu}_{1}(m k)-\mu_{1}\right) \geq \Delta_{i}\right)
 \end{aligned}$$
-   $\V(\widehat{\mu}_{i } - \widehat{\mu}_1) = \sqrt{2 \sigma ^2 /m  }= \sqrt{2/m}$
-  then  $\hat{\mu}_{i}(m k)-\mu_{i}-\left(\hat{\mu}_{1}(m k)-\mu_{1}\right) $ is $ \sqrt{2 / m}$-subgaussian. Apply theorem 5.3, we have:
+
 $$\mathbb{P}\left(\hat{\mu}_{i}(m k)-\mu_{i}-\hat{\mu}_{1}(m k)+\mu_{1} \geq \Delta_{i}\right) \leq \exp \left(-\frac{m \Delta_{i}^{2}}{4}\right)$$
-
-Substitute into the regret decomposition, we have:
-\[
-R_{n} \leq m \sum_{i=1}^{k} \Delta_{i}+(n-m k) \sum_{i=1}^{k} \Delta_{i} \exp \left(-\frac{m \Delta_{i}^{2}}{4}\right)
-\quad \square
-\]
 \end{frame}
 
 \begin{frame}{}
-  \begin{block}{Theorem 6.1}
-\[
-R_{n} \leq m \sum_{i=1}^{k} \Delta_{i}+(n-m k) \sum_{i=1}^{k} \Delta_{i} \exp \left(-\frac{m \Delta_{i}^{2}}{4}\right)
-\]
-  \end{block}
+For large n the quantity on the right-hand side of Eq. (6.4) is minimised up to a
+possible rounding error by: 
+$$m=\max \left\{1,\left[\frac{4}{\Delta^{2}} \log \left(\frac{n \Delta^{2}}{4}\right)\right]\right\}$$
 
-The bound in Theorem 6.1 illustrates the trade-off between exploration and exploitation.
-  \begin{itemize}
-    \item  If $m$ is large, then the policy explores for too long, and the first term will be large.
-    \item  On the other hand, if $m$ is too small, then the probability that the algorithm commits to the wrong arm will grow, and the second term becomes large.
-   
-  \end{itemize}
-\end{frame}
+$$R_{n} \leq \min \left\{n \Delta, \Delta+\frac{4}{\Delta}\left(1+\max \left\{0, \log \left(\frac{n \Delta^{2}}{4}\right)\right\}\right)\right\}$$
 
-\begin{frame}{}
-      The question is how to choose $m .$ Assume that $k=2$ and that the first arm is optimal so that $\Delta_{1}=0,$ and abbreviate $\Delta=\Delta_{2} .$ Then the bound in Theorem 6.1 simplifies to
-$$R_{n} \leq m \Delta+(n-2 m) \Delta \exp \left(-\frac{m \Delta^{2}}{4}\right) \leq m \Delta+n \Delta \exp \left(-\frac{m \Delta^{2}}{4}\right)$$
-
-Minimize RHS w.r.t m:
-  $$m=\max \left\{1,\left[\frac{4}{\Delta^{2}} \log \left(\frac{n \Delta^{2}}{4}\right)\right]\right\} \quad (6.5)$$
-
-  $$R_{n} \leq \min \left\{n \Delta, \Delta+\frac{4}{\Delta}\left(1+\max \left\{0, \log \left(\frac{n \Delta^{2}}{4}\right)\right\}\right)\right\} \quad (6.6)$$
-  Because $\log(n) < \sqrt{n}$. Then we can find a constant  $C > 0$ so that:
 $$R_{n} \leq \Delta+C \sqrt{n}$$
-Because $\Delta \leq 1$ so:
+
 $$R_{n} \leq 1+C \sqrt{n}$$
 
   Bounds of this type are called  \textbf{worst-case} ,  \textbf{problem free}  
   or  \textbf{problem independent} 
 \end{frame}
-
-\begin{frame}{}
-
-  \includegraphics[width=0.9\textwidth]{img/etc_exp}
-   
-\end{frame}
-
 
 \end{document}

@@ -1,0 +1,101 @@
+The Univariate Fourier Series
+The Fourier series is used to approximate a periodic function; a function $f$ is periodic with period $T$ if $f(x+T)=$ $f(x), \forall x .$ The $n$ th degree Fourier expansion of $f$ is:
+$$
+\bar{f}(x)=\frac{a_{0}}{2}+\sum_{k=1}^{n}\left[a_{k} \cos \left(k \frac{2 \pi}{T} x\right)+b_{k} \sin \left(k \frac{2 \pi}{T} x\right)\right]
+$$
+with $a_{k}=\frac{2}{T} \int_{0}^{T} f(x) \cos \left(\frac{2 \pi k x}{T}\right) d x$ and with $b_{k}=$
+$\frac{2}{T} \int_{0}^{T} f(x) \sin \left(\frac{2 \pi k x}{T}\right) d x .$ For the remainder of this paper
+we assume for simplicity that $T=2,$ with the variables of the function we wish to approximate scaled appropriately. In the RL setting $f$ is unknown so we cannot compute $a_{0}, \ldots, a_{n}$ and $b_{1}, \ldots, b_{n},$ but we can instead treat them as parameters in a linear function approximation scheme, with:
+$$
+\phi_{i}(x)=\left\{\begin{array}{ll}
+1 & i=0 \\
+\cos \left(\frac{i+1}{2} \pi x\right) & i>0, i \text { odd } \\
+\sin \left(\frac{i}{2} \pi x\right) & i>0, i \text { even }
+\end{array}\right.
+$$
+
+The Multivariate Fourier Series
+The $n$ th order Fourier expansion of the multivariate function $F(\mathbf{x})$ with period $T$ in $d$ dimensions is:
+$$
+\bar{F}(\mathbf{x})=\sum_{\mathbf{c}}\left[a_{\mathbf{c}} \cos \left(\frac{2 \pi}{T} \mathbf{c} \cdot \mathbf{x}\right)+b_{\mathbf{c}} \sin \left(\frac{2 \pi}{T} \mathbf{c} \cdot \mathbf{x}\right)\right]
+$$
+
+where $\mathbf{c}=\left[c_{1}, \ldots, c_{d}\right], c_{j} \in[0, \ldots, n], 1 \leq j \leq d .$ This
+results in $2(n+1)^{d}$ basis functions for an $n$ th order full Fourier approximation to a value function in $d$ dimensions, which can be reduced to $(n+1)^{d}$ if we drop either the sin or cos terms for each variable as described above. We thus define the $n$ th order Fourier basis for $d$ variables:
+$$
+\phi_{i}(\mathbf{x})=\cos \left(\pi \mathbf{c}^{i} \cdot \mathbf{x}\right)
+$$
+where $\mathbf{c}^{i}=\left[c_{1}, \ldots, c_{d}\right], c_{j} \in[0, \ldots, n], 1 \leq j \leq d .$ 
+
+In this chapter, we empirically evaluate the proposed optimistic VI algorithm, and compare it to
+standard VI, as well as VI with greedy exploration. The goal of our experiments is to provide insight
+into the benefits of using optimism in value iteration. We initialize all value functions optimistically.
+We evaluate algorithms on the following environments.\\
+ \textbf{N-chain}
+The N-chain environment involves a long chain of N states with two actions: left and right.
+The agent can only move right in state 1 and move left when it is in state N. The observed state is
+the current state in the chain (i.e from 1 to N). Initially, agent starts at state 1. In state 1, the agent
+receives reward 0.01 deterministically. In state N, the agent receives reward 1 with probability 0.1
+and zero otherwise. The reward is zero in all other states. The optimal policy is to head right at every
+time step and keep collecting reward at state N. The N-chain environment is illustrated in Figure 1.\\
+ \textbf{CartPole}
+ (Barto et al., 1983). In the CartPole environment, a pole is attached by an unactuated joint
+to a cart, which moves along a frictionless rail. The system is controlled by pushing the cart to the
+left or right. The observation consists of the position and velocity of the cart, pole angle, and pole
+velocity at the tip. The pole starts upright, and the goal is to prevent it fall down. The reward is +1
+for every time step that the pole remains upright. The episode ends if the pole angle is more than 12
+degrees from vertical, or the cart moves more than 2.4 units from the center, or after 500 steps.\\
+ \textbf{Mountain Car}
+ (Moore, 1990). In the Mountain Car environment, a car is in a position between two
+mountains. The goal is to drive the car up to the mountain on the right. However, the car needs to
+drive back and forth to build up momentum because the car's engine is not strong enough to drive
+up the mountain in a single pass. The agent receives a reward -1 at each time step or receives zero
+reward if it successfully drive up the mountain. Each episode ends after 200 time steps or when the
+car reaches the goal.\\
+ \textbf{Acrobot }
+(Geramifard et al., 2015) The Acrobot is a system with two links pendulum, where only the
+second joint between the two links is actuated. Initially, the links are hanging downwards, and the
+goal is to swing the end of the lower link up to a given height. The environment has six observations,
+consists of the sine and cosine of the two rotational joint angles and the joint angular velocities. The
+action is either applying +1, 0 or -1 torque on the joint between the two pendulum links. The reward
+is -1 at each time step until the episode ends. The episode terminates if the agent successfully swings
+up the pendulums, or after 500 time steps.
+For CartPole, Mountain Car and Acrobot environments, we construct multivariate Fourier basis
+features (Konidaris et al., 2011) of order 2 from the given states and actions. We set action features to
+be binary action indicator vectors, and set $ \phi (s, a)$ to be the cross-product between state and action
+features. For  $\varepsilon$-greedy algorithm, we choose  $\varepsilon $ = 0.1 where, with probability ", the agent selects
+an action uniformly at random. Each algorithm runs for 25000 time steps and we keep track of the
+total rewards at each episode. For each algorithm and environment we display the mean and standard
+deviation of the reward per episode over 50 runs.
+The results are shown in Figures 2. It can be seen that on N-chain, optimistic VI drastically outper-
+forms both standard value iteration and the version with "-greedy exploration. On the experiments
+with function approximation, optimistic VI consistently performs well on CartPole, Mountain Car
+and Acrobot environments.
+
+\begin{figure}[ht!]
+    \centering
+    \begin{subfigure}[b]{0.47\textwidth}
+        \includegraphics[width=\textwidth]{image/n_chain}
+        \caption{Evaluation on N-chain environment.}
+        \label{fig:nchain}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.47\textwidth}
+        \includegraphics[width=\textwidth]{image/pole1}
+        \caption{Evaluation on CartPole environment.}
+        \label{fig:pole}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.47\textwidth}
+        \includegraphics[width=\textwidth]{image/car}
+        \caption{Evaluation on Mountain Car environment.}
+        \label{fig:car}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.47\textwidth}
+        \includegraphics[width=\textwidth]{image/acrobot}
+        \caption{Evaluation on Acrobot environment.}
+        \label{fig:acrobot}
+    \end{subfigure}
+    \caption{Experimental results with mean and standard deviation of 50 runs.}
+    \label{fig:experiment}
+\end{figure}
+

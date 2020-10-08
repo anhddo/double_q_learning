@@ -1,0 +1,73 @@
+\documentclass[oneside]{book}
+\usepackage{ragged2e }
+\usepackage{amsfonts}
+\usepackage[]{graphicx}
+\usepackage[]{amsmath} 
+\usepackage{import}
+\usepackage{xifthen}
+\usepackage{pdfpages}
+\usepackage{transparent}
+\usepackage{geometry}
+\usepackage{mathptmx}
+\usepackage{caption}
+\usepackage{subcaption}
+%\changefontsizes{13pt}
+\usepackage[]{hyperref}
+\usepackage[ruled,vlined, linesnumbered]{algorithm2e}
+\usepackage[fontsize=13pt]{scrextend}
+\geometry{
+a4paper,
+left=35mm,
+right=20mm,
+top=35mm,
+bottom=30mm
+}
+%\usepackage[nonatbib]{neurips_2020}
+\usepackage[backend=biber, style=apa]{biblatex}
+%\usepackage{caption}
+%\usepackage{subcaption}
+\addbibresource{refs.bib}
+%\renewcommand{\familydefault}{\sfdefault}
+
+%\newcommand{\incfig}[2]{%
+%    \def\svgwidth{#1\columnwidth}
+%    \import{./img/}{#2.pdf_tex}
+%}
+\newcommand{\mbP}{\mathbb{P}}
+\newcommand{\mbV}{\mathbb{V}}
+\newcommand{\mbE}{\mathbb{E}}
+\newcommand{\mcF}{\mathcal{F}}
+\DeclareMathOperator*{\argmax}{argmax} 
+\DeclareMathOperator*{\argmin}{argmin} 
+\DeclareMathOperator*{\clim}{{C--lim}} 
+\renewcommand{\algorithmautorefname}{Algorithm}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem{lemma}[theorem]{Lemma}
+
+\author{%
+  Anh Do \\
+  \texttt{anhddo93@gmail.com} \\
+}
+\date{}
+\title{Thesis: Regret bound for optimistic value iteration in average Reward MDPs}
+\begin{document}
+
+\maketitle
+\tableofcontents
+\justify
+\printbibliography
+\chapter{Acknowledgement}
+\input{chapters/ack}
+\chapter{Introduction}
+\input{chapters/intro}
+\chapter{Related work}
+\input{chapters/relate}
+\chapter{Our work}
+\input{chapters/ourwork}
+\chapter{Experimetal results}
+\input{chapters/experiment}
+\chapter{Conclusion}
+\input{chapters/conclusion}
+
+\end{document}
