@@ -50,5 +50,21 @@ $$
 \widehat{P}_{t,(s, a)}=\phi(s, a)^{\top} M_{t+1}^{-1} \sum_{k=1}^{t} \phi_{k} \mathbf{1}_{s_{k+1}}^{\top}, \quad \text { where } M_{t+1}=\sum_{k=1}^{t} \phi_{k} \phi_{k}^{\top}+\lambda I
 $$
 We will rely on this estimate in the analysis, but our algorithm will not compute it explicitly.
-
-
+\section{Covariance matrix}
+Throughout this article, boldfaced unsubscripted $\mathbf{X}$ and $\mathbf{Y}$ are used to refer to random vectors, and unboldfaced subscripted $X_{i}$ and $Y_{i}$ are used to refer to scalar random variables.
+If the entries in the column vector
+$$
+\mathbf{X}=\left(X_{1}, X_{2}, \ldots, X_{n}\right)^{\mathrm{T}}
+$$
+are random variables, each with finite variance and expected value, then the covariance matrix $\mathrm{K}_{\mathrm{XX}}$ is the matrix whose $(i, j)$ entry is the covariance $^{[1]: p .177}$
+$$
+\mathbf{K}_{X_{i} X_{j}}=\operatorname{cov}\left[X_{i}, X_{j}\right]=\mathrm{E}\left[\left(X_{i}-\mathrm{E}\left[X_{i}\right]\right)\left(X_{j}-\mathrm{E}\left[X_{j}\right]\right)\right]
+$$
+where the operator $\mathrm{E}$ denotes the expected value (mean) of its argument.
+In other words,
+\section{Sherman-Morrison formula}
+Suppose $A \in \mathbb{R}^{n \times n}$ is an invertible square matrix and $u, v \in \mathbb{R}^{n}$ are column vectors. Then $A+u v^{\top}$ is invertible iff $1+v^{\top} A^{-1} u \neq 0 .$ In this case,
+$$
+\left(A+u v^{\top}\right)^{-1}=A^{-1}-\frac{A^{-1} u v^{\top} A^{-1}}{1+v^{\top} A^{-1} u}
+$$
+Here, $u v^{\top}$ is the outer product of two vectors $u$ and $v$. The general form shown here is the one published by Bartlett. $^{[5]}$

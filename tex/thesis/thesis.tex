@@ -10,11 +10,19 @@
 \usepackage{geometry}
 \usepackage{mathptmx}
 \usepackage{caption}
+\usepackage{multirow}
 \usepackage{subcaption}
 %\changefontsizes{13pt}
 \usepackage[]{hyperref}
+\usepackage[nottoc]{tocbibind}
 \usepackage[ruled,vlined, linesnumbered]{algorithm2e}
 \usepackage[fontsize=13pt]{scrextend}
+\usepackage[
+backend=biber,
+style=apa,
+sorting=ynt
+]{biblatex}
+\addbibresource{ref.bib}
 \geometry{
 a4paper,
 left=35mm,
@@ -22,11 +30,12 @@ right=20mm,
 top=35mm,
 bottom=30mm
 }
+\linespread{1.5}
 %\usepackage[nonatbib]{neurips_2020}
-\usepackage[backend=biber, style=apa]{biblatex}
+%\usepackage[backend=biber, style=apa]{biblatex}
 %\usepackage{caption}
 %\usepackage{subcaption}
-\addbibresource{refs.bib}
+%\addbibresource{refs.bib}
 %\renewcommand{\familydefault}{\sfdefault}
 
 %\newcommand{\incfig}[2]{%
@@ -55,11 +64,14 @@ bottom=30mm
 
 \maketitle
 \tableofcontents
+\listoffigures
+\listoftables
 \justify
-\printbibliography
+%\printbibliography
 \chapter{Acknowledgement}
 \input{chapters/ack}
 \chapter{Introduction}
+\input{chapters/background}
 \input{chapters/intro}
 \chapter{Related work}
 \input{chapters/relate}
@@ -69,5 +81,7 @@ bottom=30mm
 \input{chapters/experiment}
 \chapter{Conclusion}
 \input{chapters/conclusion}
-
+%\bibliographystyle{unsrt}
+%\bibliography{ref}
+\printbibliography
 \end{document}

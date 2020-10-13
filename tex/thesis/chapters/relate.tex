@@ -1,7 +1,78 @@
+\section{Jin 2018}
+Model-free reinforcement learning (RL) algorithms, such as Q-learning, directly parameterize and update value functions or policies without explicitly modeling the environment. They are typically simpler, more flexible to use, and thus more prevalent in modern deep RL than model-based approaches. However, empirical work has suggested that model-free algorithms may require more samples to learn 7 . 22 ]. The theoretical question of "whether model-free algorithms can be made sample efficient" is one of the most fundamental questions in $\mathrm{RL},$ and remains unsolved even in the basic scenario with finitely many states and actions.
+
+We prove that, in an episodic MDP setting, Q-learning with UCB exploration achieves regret $\tilde{\mathcal{O}}\left(\sqrt{H^{3} S A T}\right),$ where $S$ and $A$ are the numbers of states and actions, $H$ is the number of steps per episode, and $T$ is the total number of steps. This sample efficiency matches the optimal regret that can be achieved by any model-based approach, up to a single $\sqrt{H}$ factor. To the best of our knowledge, this is the first analysis in the model-free setting that establishes $\sqrt{T}$ regret without requiring access to a "simulator."
+\section{Jin 2019}
+\subsection{ Linear Markov decision processes}
+We focus on a setting of a linear Markov decision process, where the transition kernels and the reward function are assumed to be linear. This assumption implies that the action-value function is linear, as we will show. Note that this is $n o t$ the same as the assumption that the policy is a linear function -an assumption that has been the focus of much of the literature. Rather, it is akin to a statistical modeling assumption, in which we make assumptions about how data are generated and then study various estimators. Formally, we make the following definition.
+Assumption A (Linear MDP [12,29] ). $\operatorname{MDP}(\mathcal{S}, \mathcal{A}, \mathrm{H}, \mathbb{P}, \mathrm{r})$ is a linear $M D P$ with a feature $\operatorname{map} \phi: \mathcal{S} \times$
+$\mathcal{A} \rightarrow \mathbb{R}^{d},$ if for any $h \in[H],$ there exist $d$ unknown $($ signed $)$ measures $\mu_{h}=\left(\mu_{h}^{(1)}, \ldots, \mu_{h}^{(d)}\right)$ over $\mathcal{S}$ and an unknown vector $\theta_{h} \in \mathbb{R}^{d},$ such that for any $(x, a) \in \mathcal{S} \times \mathcal{A},$ we have
+$$
+\mathbb{P}_{h}(\cdot \mid x, a)=\left\langle\boldsymbol{\phi}(x, a), \boldsymbol{\mu}_{h}(\cdot)\right\rangle, \quad r_{h}(x, a)=\left\langle\boldsymbol{\phi}(x, a), \boldsymbol{\theta}_{h}\right\rangle
+$$
+Without loss of generality, we assume $\|\phi(x, a)\| \leq 1$ for all $(x, a) \in \mathcal{S} \times \mathcal{A},$ and $\max \left\{\left\|\mu_{h}(\mathcal{S})\right\|,\left\|\theta_{h}\right\|\right\} \leq$
+$\sqrt{d}$ for all $h \in[H]$
+By definition, in a linear MDP, both the Markov transition model and the reward functions are linear in a feature mapping $\phi .$ We remark that despite being linear, the Markov transition model $\mathbb{P}_{h}(\cdot \mid x, a)$ can still have infinite degrees of freedom as the measure $\mu_{h}$ is unknown. This is a key difference from the linear quadratic regulator [1,18,4,13,15] or the recent work of Yang and Wang [50] , whose transition models are completely specified by a finite-dimensional matrix such that the degrees of freedom are bounded.
+
+Recall that we assume the reward functions are bounded in [0,1] , which implies that the value functions are bounded in $[0, H] .$ Our choice of normalization conditions in Assumption ? implies that the following concrete examples serve as special cases of a linear MDP.
+\subsection{mechanisms}
+In this section, we overview several of the key ideas behind the regret bound in Theorem $\frac{1}{3.1}$. We defer the
+In Section 3 , we mentioned that the LSVI algorithm is motivated from the Bellman optimality equation Eq. (?). It remains to verify that line 5 in Algorithm $\square$ indeed well approximates the Bellman optimality equation, which turns out to require not only the linear MDP structure but also hinges on several other facts. To simplify our presentation, in this section we treat the regularization parameter $\lambda$ loosely as being sufficiently small so that $\Lambda_{h}^{-1} \sum_{\tau=1}^{k-1} \phi\left(x_{h}^{\tau}, a_{h}^{\tau}\right) \phi\left(x_{h}^{\tau}, a_{h}^{\tau}\right)^{\top} \approx$ I. We will focus in this section on a fixed
+episode $k,$ and drop the dependency of parameters and value functions on $k$ when it is clear from the context. Now, ignoring the UCB bonus, the least-squares solution (line $[5$ ) gives the following estimate of the actionvalue function:
+$$
+Q_{h}(x, a) \approx \phi(x, a)^{\top} \mathbf{w}_{h}=\phi(x, a)^{\top} \Lambda_{h}^{-1} \sum_{\tau=1}^{k-1} \phi\left(x_{h}^{\tau}, a_{h}^{\tau}\right)\left[r_{h}\left(x_{h}^{\tau}, a_{h}^{\tau}\right)+V_{h+1}\left(x_{h+1}^{\tau}\right)\right]
+$$
+where $V_{h+1}(\cdot)=\max _{a \in \mathcal{A}} Q_{h+1}(\cdot, a) .$ Plugging in $r_{h}(\cdot, \cdot)=\phi(\cdot, \cdot)^{\top} \boldsymbol{\theta}_{h},$ we know the first term on the
+of right-hand side approximates $\mathbb{P}_{h} V_{h+1}(x, a) .$ We thus define our empirical Markov transition measure as
+$$
+\widehat{\mathbb{P}}_{h}(\cdot \mid x, a):=\boldsymbol{\phi}(x, a)^{\top} \Lambda_{h}^{-1} \sum_{\tau=1}^{k-1} \boldsymbol{\phi}\left(x_{h}^{\tau}, a_{h}^{\tau}\right) \delta\left(\cdot, x_{h+1}^{\tau}\right)
+$$
+where the $\delta$ -measure $\delta(\cdot, x)$ puts an atom on element $x$. It remains to verify that $\widehat{\mathbb{P}}_{h} V_{h+1}(x, a) \approx \mathbb{P}_{h} V_{h+1}(x, a)$ To establish this, we use a measure $\overline{\mathbb{P}}_{h}$ to bridge these two quantities:
+$$
+\overline{\mathbb{P}}_{h}(\cdot \mid x, a):=\boldsymbol{\phi}(x, a)^{\top} \Lambda_{h}^{-1} \sum_{\tau=1}^{k-1} \boldsymbol{\phi}\left(x_{h}^{\tau}, a_{h}^{\tau}\right) \mathbb{P}_{h}\left(\cdot \mid x_{h}^{\tau}, a_{h}^{\tau}\right)
+$$
+\section{Reinforcment learning}
+Due to its generality, reinforcement learning is studied in many disciplines, such as game theory, control theory, operations research, information theory, simulation-based optimization, multi-agent systems, swarm intelligence, and statistics. In the operations research and control literature, reinforcement learning is called approximate dynamic programming, or neuro-dynamic programming. The problems of interest in reinforcement learning have also been studied in the theory of optimal control, which is concerned mostly with the existence and characterization of optimal solutions, and algorithms for their exact computation, and less with learning or approximation, particularly in the absence of a mathematical model of the environment. In economics and game theory, reinforcement learning may be used to explain how equilibrium may arise under bounded rationality.
+
+Basic reinforcement is modeled as a Markov decision process (MDP):
+
+a set of environment and agent states, S;
+a set of actions, A, of the agent;
+ $P_{a}(s,s')=\Pr(s_{t+1}=s'\mid s_{t}=s,a_{t}=a)$ $ P_{a}(s,s')=\Pr(s_{t+1}=s'\mid s_{t}=s,a_{t}=a)$ is the probability of transition t from state s to state  $s ^{'}$ under action a
+$R_{a}(s,s')$  is the immediate reward after transition from s to  $s ^{'}$ with action a.
+A reinforcement learning agent interacts with its environment in discrete time steps. At each time t, the agent receives the current state $ s_{t}$ and reward  $r_{t}$. It then chooses an action $a_{t}$ from the set of available actions, which is subsequently sent to the environment. The environment moves to a new state $s_{t+1}$ and the reward $r_{t+1}$ associated with the transition $(s_{t},a_{t},s_{t+1})$ is determined. The goal of a reinforcement learning agent is to learn a policy: $\pi :A\times S\rightarrow [0,1]$, $\pi (a,s)=\Pr(a_{t}=a\mid s_{t}=s)$ which maximizes the expected cumulative reward.
+
+Formulating the problem as a MDP assumes the agent directly observes the current environmental state; in this case the problem is said to have full observability. If the agent only has access to a subset of states, or if the observed states are corrupted by noise, the agent is said to have partial observability, and formally the problem must be formulated as a Partially observable Markov decision process. In both cases, the set of actions available to the agent can be restricted. For example, the state of an account balance could be restricted to be positive; if the current value of the state is 3 and the state transition attempts to reduce the value by 4, the transition will not be allowed.
+
+When the agent's performance is compared to that of an agent that acts optimally, the difference in performance gives rise to the notion of regret. In order to act near optimally, the agent must reason about the long-term consequences of its actions (i.e., maximize future income), although the immediate reward associated with this might be negative.
+
+Thus, reinforcement learning is particularly well-suited to problems that include a long-term versus short-term reward trade-off. It has been applied successfully to various problems, including robot control, elevator scheduling, telecommunications, backgammon, checkers[3] and Go (AlphaGo).
+
+Two elements make reinforcement learning powerful: the use of samples to optimize performance and the use of function approximation to deal with large environments. Thanks to these two key components, reinforcement learning can be used in large environments in the following situations:
+
+A model of the environment is known, but an analytic solution is not available;
+Only a simulation model of the environment is given (the subject of simulation-based optimization);[4]
+The only way to collect information about the environment is to interact with it.
+The first two of these problems could be considered planning problems (since some form of model is available), while the last one could be considered to be a genuine learning problem. However, reinforcement learning converts both planning problems to machine learning problems.
+
+\section{Other}
+\begin{table}
+\begin{tabular}{ |c|c|c|c| } 
+ \hline
+    &  \textbf{Algorithm} & \textbf{Regret} &  \textbf{Comment} \\ 
+ \hline
+ \multirow{4}{4em}{Model-based}   & REGAL & $\widetilde{\mathcal{O}}\left(\operatorname{sp}\left(v^{*}\right) \sqrt{S A T}\right)$& No efficient implementation \\ 
+    & UCRL2 & $\widetilde{\mathcal{O}}(D S \sqrt{A T})$& No efficient implementation \\ 
+    & PSRL & $\tilde{O}\left(\operatorname{sp}\left(v^{*}\right) S \sqrt{A T}\right)$& No efficient implementation \\ 
+ \hline
+\end{tabular}
+    \caption{Regret comparison for RL algorithms}
+    \label{table:regretcomp}
+\end{table}
 Undiscounted MDPs. Most no-regret algorithms for infinite-horizon undiscounted MDPs focus on tabular representations, and apply optimism to a model of the transition dynamics (Bartlett \& Tewari, 2009 , Fruit et al., 2018 , Jaksch et al., 2010 , Jian et al., 2019 , Ouyang et al., 2017 , Talebi \& Maillard,
 2018). For a weakly-communicating MDP with $S$ states, $A$ actions, and diameter $D$, these algorithms achieve the minimax lower bound of $\mathcal{O}(\sqrt{D S A T})$ (Jaksch et al., 2010 ) with high probability up to constant factors (typically $\sqrt{D S}$ ). The downside of model-based algorithms is that they are memory intensive in large-scale MDPs, as they require $S^{2} A$ storage, and as well as being difficult to extend to continuous-valued states.
 
-Among model-free algorithms for tabular MDPs, Wei et al., 2019 show that optimistic Q-learning achieves $\mathcal{O}\left(\operatorname{sp}\left(V_{*}\right)(S A)^{1 / 3} T^{2 / 3}\right)$ regret in weakly-communicating MDPs, where $\operatorname{sp}\left(V_{*}\right)$ is the span of the optimal state-value function (upper bounded by the diameter $D$ ). In the case of uniformly ergodic MDPs, they show a bound of $\mathcal{O}\left(\sqrt{t_{\operatorname{mix}}^{3} \rho A T}\right)$ on expected regret, where $t_{\operatorname{mix}}$ is the mixing time and $\rho$ is the stationary distribution mismatch coefficient. Our optimistic value iteration is a non-trivial generalization of their Q-learning approach to a setting with function approximation.
+Among model-free algorithms for tabular MDPs,\cite{wei2020modelfree} show that optimistic Q-learning achieves $\mathcal{O}\left(\operatorname{sp}\left(V_{*}\right)(S A)^{1 / 3} T^{2 / 3}\right)$ regret in weakly-communicating MDPs, where $\operatorname{sp}\left(V_{*}\right)$ is the span of the optimal state-value function (upper bounded by the diameter $D$ ). In the case of uniformly ergodic MDPs, they show a bound of $\mathcal{O}\left(\sqrt{t_{\operatorname{mix}}^{3} \rho A T}\right)$ on expected regret, where $t_{\operatorname{mix}}$ is the mixing time and $\rho$ is the stationary distribution mismatch coefficient. Our optimistic value iteration is a non-trivial generalization of their Q-learning approach to a setting with function approximation.
 In the model-free setting with function approximation, the Politex algorithm (Abbasi-Yadkori et al., 2019 , a variant of approximate policy iteration, achieves $\mathcal{O}\left(d^{1 / 2} T^{3 / 4}\right),$ where $d$ is the size of the compressed state-action space (i.e. number of features). The AAPI algorithm of Hao et al., 2020 achieves regret $\mathcal{O}\left(T^{2 / 3}\right)$ using a version of POLITEX with an adaptive learning rate. However, these algorithms do not explicitly tackle exploration, and instead make additional assumptions - namely, that the MDP is ergodic, and that all policies are sufficiently exploratory so that the value functions can be estimated with small error from on-policy data.
 
 Episodic MDPs. Optimistic value-based algorithms have been more popular in episodic MDPs. In the tabular case with horizon $H,$ Jin et al., 2018 show an $\mathcal{O}\left(\sqrt{H^{3} S A T}\right)$ regret bound for Q-learning with UCB-style exploration. With function approximation, Cai et al., 2019 , Jin et al., 2019 , L. F. Yang and Wang, 2019 show an $\mathcal{O}\left(\sqrt{d^{3} H^{3} T}\right)$ regret bound for an optimistic version of least-squares value iteration in linear MDPs. The RLSVI algorithm Osband et al., 2016 performs exploration in the value function parameter space, but its worse-case regret bound of $\mathcal{O}\left(\sqrt{H^{5} S^{3} A T}\right)$ holds only in the tabular setting (Russo, 2019 ).

@@ -31,6 +31,11 @@ In this chapter, we empirically evaluate the proposed optimistic VI algorithm, a
 standard VI, as well as VI with greedy exploration. The goal of our experiments is to provide insight
 into the benefits of using optimism in value iteration. We initialize all value functions optimistically.
 We evaluate algorithms on the following environments.\\
+
+\begin{figure}[ht!]
+    \includegraphics[width=\textwidth]{image/n_chain_fig}
+\end{figure}
+
  \textbf{N-chain}
 The N-chain environment involves a long chain of N states with two actions: left and right.
 The agent can only move right in state 1 and move left when it is in state N. The observed state is
@@ -95,7 +100,74 @@ and Acrobot environments.
         \caption{Evaluation on Acrobot environment.}
         \label{fig:acrobot}
     \end{subfigure}
-    \caption{Experimental results with mean and standard deviation of 50 runs.}
+    \caption{Cummulative reward on different environments.}
     \label{fig:experiment}
 \end{figure}
 
+\begin{table} 
+    \begin{tabular} {|c|c|c|c|}
+    \hline
+        \multirow{8}{5em}{Cartpole}&  \multicolumn{3}{|c|}{ \textbf{Observation} }\\ \cline{2-4}
+        &\textbf{Name} & \textbf{Min} &  \textbf{Max} \\ \cline{2-4}
+    &       Cart Position &             -4.8 &                    4.8 \\
+    &       Cart Velocity &             -Inf &                   Inf \\
+    &       Pole Angle &                -0.418 rad (-24 deg) &    0.418 rad (24 deg) \\
+    &       Pole Angular Velocity  &   -Inf &                    Inf \\\cline{2-4}
+        &\multicolumn{3}{|c|} {\textbf{Action}}\\\cline{2-4}
+          & \textbf{Value}&   \multicolumn{2}{|l|}{ \textbf{Meaning}}\\\cline{2-4}
+          &  0   & \multicolumn{2}{|l|}{Push cart to the left}\\
+          &  1   & \multicolumn{2}{|l|}{Push cart to the right}\\
+    \hline
+        \multirow{8}{3em}{Mountain Cart}&  \multicolumn{3}{|c|}{ \textbf{Observation} }\\ \cline{2-4}
+        &\textbf{Name} & \textbf{Min} &  \textbf{Max} \\ \cline{2-4}
+    &       Cart Position &             -4.8 &                    4.8 \\
+    &       Cart Velocity &             -Inf &                   Inf \\
+    &       Pole Angle &                -0.418 rad (-24 deg) &    0.418 rad (24 deg) \\
+    &       Pole Angular Velocity  &   -Inf &                    Inf \\\cline{2-4}
+        &\multicolumn{3}{|c|} {\textbf{Action}}\\\cline{2-4}
+          & \textbf{Value}&   \multicolumn{2}{|l|}{ \textbf{Meaning}}\\\cline{2-4}
+          &  0   & \multicolumn{2}{|l|}{Push cart to the left}\\
+          &  1   & \multicolumn{2}{|l|}{Push cart to the right}\\
+    \hline
+    \end{tabular}
+\label{table:env}
+\caption{Observation and action for OpenAI gym environment}
+\end{table}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+  \textbf{Input} : Scale parameter H, regularization parameter  $\lambda$, 
+  confidence level  $\delta  \in (0,1) $, the number of phase T.\\
+ \textbf{Initialization}: Let $\gamma=1-1 / H, \tilde{V}_{1}=H, \widetilde{Q}_{1}=H$ \\
+ \For{t= 1 \dots , T}{
+Calculate the empirical covariance matrix:  $M_{t}=\sum_{k=1}^{t-1} \phi\left(s_{k}, a_{k}\right) \phi\left(s_{k}, a_{k}\right)^{\top}+\lambda I$ \\
+Update the regularized least square estimate as:
+  \[
+    w_{t}=M_{t}^{-1} \sum_{k=1}^{t-1} \phi\left(s_{k}, a_{k}\right)\left[r\left(s_{k}, a_{k}\right)+\gamma \widetilde{V}_{t-1}\left(s_{k+1}\right)\right] 
+  \] \\
+Find the optimistic estimation of Q-function: $\widetilde{Q}_{t}(s, a)=\phi(s, a)^{\top} w_{t}$ \\
+  Take action: $a_{t}=\operatorname{argmax}_{a} \widetilde{Q}_{t}\left(s_{t}, a\right)$ and observe $s _{t+1}$ 
+  }
+ 
+ \caption{Standard value iteration for average reward problems}
+\end{algorithm}
+
+\pagebreak
+\begin{algorithm}[H]
+\SetAlgoLined
+  \textbf{Input} : Scale parameter H, regularization parameter  $\lambda$, 
+  confidence level  $\delta  \in (0,1) $, the number of phase T.\\
+ \textbf{Initialization}: Let $\gamma=1-1 / H, \tilde{V}_{1}=H, \widetilde{Q}_{1}=H$ \\
+ \For{t= 1 \dots , T}{
+Calculate the empirical covariance matrix:  $M_{t}=\sum_{k=1}^{t-1} \phi\left(s_{k}, a_{k}\right) \phi\left(s_{k}, a_{k}\right)^{\top}+\lambda I$ \\
+Update the regularized least square estimate as:
+  \[
+    w_{t}=M_{t}^{-1} \sum_{k=1}^{t-1} \phi\left(s_{k}, a_{k}\right)\left[r\left(s_{k}, a_{k}\right)+\gamma \widetilde{V}_{t-1}\left(s_{k+1}\right)\right] 
+  \] \\
+Find the optimistic estimation of Q-function: $\widetilde{Q}_{t}(s, a)=\phi(s, a)^{\top} w_{t}$ \\
+We uniformly take action at random with probability $\varepsilon $ 
+  Take action: $a_{t}=\operatorname{argmax}_{a} \widetilde{Q}_{t}\left(s_{t}, a\right)$ and observe $s _{t+1}$ 
+  }
+ 
+ \caption{ $\varepsilon$-greedy value iteration}
+\end{algorithm}

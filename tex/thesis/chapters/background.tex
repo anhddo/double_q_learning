@@ -1,0 +1,239 @@
+\section{Background}
+ \textbf{Filtration}\\
+DEFINITION 2.1 ( $\sigma$ -algebra and probability measures). A set $\mathcal{F} \subseteq 2^{\Omega}$ is a $\sigma$ algebra if $\Omega \in \mathcal{F}$ and $A^{c} \in \mathcal{F}$ for all $A \in \mathcal{F}$ and $\cup_{i} A_{i} \in \mathcal{F}$ for all $\left\{A_{i}\right\}_{i}$ with $A_{i} \in \mathcal{F}$ for all $i \in \mathbb{N}$. That is, it should include the whole outcome space and be closed under complementation and countable unions. A function $\mathbb{P}: \mathcal{F} \rightarrow \mathbb{R}$ is a probability measure if $\mathbb{P}(\Omega)=1$ and for all $A \in \mathcal{F}, \mathbb{P}(A) \geq 0$ and $\mathbb{P}\left(A^{c}\right)=1-\mathbb{P}(A)$ and $\mathbb{P}\left(\cup_{i} A_{i}\right)=\sum_{i} \mathbb{P}\left(A_{i}\right)$ for all countable collections of disjoint
+sets $\left\{A_{i}\right\}_{i}$ with $A_{i} \in \mathcal{F}$ for all $i .$ If $\mathcal{F}$ is a $\sigma$ -algebra and $\mathcal{G} \subset \mathcal{F}$ is also a $\sigma$ -algebra, then we say $\mathcal{G}$ is a sub- $\boldsymbol{\sigma}$ -algebra of $\mathcal{F}$. If $\mathbb{P}$ is a measure defined on $\mathcal{F}$, then the restriction of $\mathbb{P}$ to $\mathcal{G}$ is a measure $\mathbb{P}_{\mid \mathcal{G}}$ on $\mathcal{G}$ defined by $\mathbb{P}_{\mid \mathcal{G}}(A)=\mathbb{P}(A)$ for all $A \in \mathcal{G}$
+
+Filtrations
+In the study of bandits and other online settings, information is revealed to the learner sequentially. Let $X_{1}, \ldots, X_{n}$ be a collection of random variables on a common measurable space $(\Omega, \mathcal{F}) .$ We imagine a learner is sequentially observing the values of these random variables. First $X_{1},$ then $X_{2}$ and so on. The learner needs to make a prediction, or act, based on the available observations. Say, a prediction or an act must produce a real-valued response. Then, having observed $X_{1: t} \doteq\left(X_{1}, \ldots, X_{t}\right),$ the set of maps $f \circ X_{1: t}$ where $f: \mathbb{R}^{t} \rightarrow \mathbb{R}$ is Borel, captures
+all the possible ways the learner can respond. By Lemma $2.5,$ this set contains exactly the $\sigma\left(X_{1: t}\right) / \mathfrak{B}(\mathbb{R})$ -measurable maps. Thus, if we need to reason about the set of $\Omega \rightarrow \mathbb{R}$ maps available after observing $X_{1: t},$ it suffices to concentrate on the $\sigma$ -algebra $\mathcal{F}_{t}=\sigma\left(X_{1: t}\right) .$ Conveniently, $\mathcal{F}_{t}$ is independent of the space of possible responses, and being a subset of $\mathcal{F},$ it also hides details about the range space of $X_{1: t} .$ It is easy to check that $\mathcal{F}_{0} \subseteq \mathcal{F}_{1} \subseteq \mathcal{F}_{2} \subseteq \cdots \subseteq \mathcal{F}_{n} \subseteq \mathcal{F},$ which
+means that more and more functions are becoming $\mathcal{F}_{t}$ -measurable as $t$ increases, which corresponds to increasing knowledge (note that $\mathcal{F}_{0}=\{\emptyset, \Omega\},$ and the set of $\mathcal{F}_{0}$ -measurable functions is the set of constant functions on $\Omega$ ).
+
+Bringing these a little further, we will often find it useful to talk about increasing sequences of $\sigma$ -algebras without constructing them in terms of random variables as above. Given a measurable space $(\Omega, \mathcal{F}),$ a filtration is a sequence $\left(\mathcal{F}_{t}\right)_{t=0}^{n}$ of sub- $\sigma$ -algebras of $\mathcal{F}$ where $\mathcal{F}_{t} \subseteq \mathcal{F}_{t+1}$ for all $t<n .$ We also allow $n=\infty,$ and in this case we define
+$$
+\mathcal{F}_{\infty}=\sigma\left(\bigcup_{t=0}^{\infty} \mathcal{F}_{t}\right)
+$$
+
+to be the smallest $\sigma$ -algebra containing the union of all $\mathcal{F}_{t} .$ Filtrations can also be defined in continuous time, but we have no need for that here. A sequence of random variables $\left(X_{t}\right)_{t=1}^{n}$ is adapted to filtration $\mathbb{F}=\left(\mathcal{F}_{t}\right)_{t=0}^{n}$ if $X_{t}$ is $\mathcal{F}_{t^{-}}$ measurable for each $t .$ We also say in this case that $\left(X_{t}\right)_{t}$ is $\mathbb{F}$ -adapted. The same nomenclature applies if $n$ is infinite. Finally, $\left(X_{t}\right)_{t}$ is $\mathbb{F}$ -predictable if $X_{t}$ is $\mathcal{F}_{t-1}$ -measurable for each $t \in[n] .$ Intuitively we may think of an $\mathbb{F}$ -predictable process $X=\left(X_{t}\right)_{t}$ as one that has the property that $X_{t}$ can be known $($ or 'predicted') based on $\mathcal{F}_{t-1}$, while a $\mathbb{F}$ -adapted process is one that has the property that $X_{t}$ can be known based on $\mathcal{F}_{t}$ only. since $\mathcal{F}_{t-1} \subseteq \mathcal{F}_{t},$ a predictable process
+is also adapted. A filtered probability space is the tuple $(\Omega, \mathcal{F}, \mathbb{F}, \mathbb{P}),$ where $(\Omega, \mathcal{F}, \mathbb{P})$ is a probability space and $\mathbb{F}=\left(\mathcal{F}_{t}\right)_{t}$ is filtration of $\mathcal{F}$
+ \subsection{Value iteration}
+The obvious way of finding an optimal behavior in some MDP is to list all behaviors and
+then identify the ones that give the highest possible value for each initial state. Since, in
+general, there are too many behaviors, this plan is not viable. A better approach is based on
+computing value functions. In this approach, one first computes the so-called optimal value
+function, which then allows one to determine an optimal behavior with relative easiness.
+The optimal value, $V^{*}(x),$ of state $x \in \mathcal{X}$ gives the highest achievable expected return when
+the process is started from state $x .$ The function $V^{*}: \mathcal{X} \rightarrow \mathbb{R}$ is called the optimal value
+function. A behavior that achieves the optimal values in all states is optimal.
+Deterministic stationary policies represent a special class of behaviors, which, as we shall see
+soon, play an important role in the theory of MDPs. They are specified by some mapping $\pi,$ which maps states to actions (i.e., $\pi: \mathcal{X} \rightarrow \mathcal{A}) .$ Following $\pi$ means that at any time $t \geq 0$
+the action $A_{t}$ is selected using
+$$
+A_{t}=\pi\left(X_{t}\right)
+$$
+More generally, a stochastic stationary policy (or just stationary policy) $\pi$ maps states to
+distributions over the action space. When referring to such a policy $\pi,$ we shall use $\pi(a \mid x)$
+to denote the probability of action $a$ being selected by $\pi$ in state $x .$ Note that if a stationary policy is followed in an MDP, i.e., if
+$$
+A_{t} \sim \pi\left(\cdot \mid X_{t}\right), \quad t \in \mathbb{N}
+$$
+
+the state process $\left(X_{t} ; t \geq 0\right)$ will be a (time-homogeneous) Markov chain. We will use $\Pi_{\text {stat }}$
+to denote the set of all stationary policies. For brevity, in what follows, we will often say
+just "policy" instead of "stationary policy", hoping that this will not cause confusion.
+
+A stationary policy and an MDP induce what is called a Markov reward processes $(\mathrm{MRP}):$ An
+$\mathrm{MRP}$ is determined by the pair $\mathcal{M}=\left(\mathcal{X}, \mathcal{P}_{0}\right),$ where now $\mathcal{P}_{0}$ assigns a probability measure
+over $\mathcal{X} \times \mathbb{R}$ to each state. An MRP $\mathcal{M}$ gives rise to the stochastic process $\left(\left(X_{t}, R_{t+1}\right) ; t \geq 0\right)$ where $\left(X_{t+1}, R_{t+1}\right) \sim \mathcal{P}_{0}\left(\cdot \mid X_{t}\right) .$ (Note that $\left(Z_{t} ; t \geq 0\right), Z_{t}=\left(X_{t}, R_{t}\right)$ is a time-homogeneous
+Markov process, where $R_{0}$ is an arbitrary random variable, while $\left(\left(X_{t}, R_{t+1}\right) ; t \geq 0\right)$ is a
+second-order Markov process.) Given a stationary policy $\pi$ and the $\mathrm{MDP} \mathcal{M}=\left(\mathcal{X}, \mathcal{A}, \mathcal{P}_{0}\right)$
+the transition kernel of the MRP $\left(\mathcal{X}, \mathcal{P}_{0}^{\pi}\right)$ induced by $\pi$ and $\mathcal{M}$ is defined using $\mathcal{P}_{0}^{\pi}(\cdot \mid x)=$ $\sum_{a \in \mathcal{A}} \pi(a \mid x) \mathcal{P}_{0}(\cdot \mid x, a) .$ An MRP is called finite if its state space is finite. Let us now define value functions underlying stationary policies. $^{6}$ For this, let us fix some
+policy $\pi \in \Pi_{\text {stat }} .$ The value function, $V^{\pi}: \mathcal{X} \rightarrow \mathbb{R},$ underlying $\pi$ is defined by
+$$
+V^{\pi}(x)=\mathbb{E}\left[\sum_{t=0}^{\infty} \gamma^{t} R_{t+1} \mid X_{0}=x\right], \quad x \in \mathcal{X}
+$$
+
+with the understanding (i) that the process $\left(R_{t} ; t \geq 1\right)$ is the "reward-part" of the process $\left(\left(X_{t}, A_{t}, R_{t+1}\right) ; t \geq 0\right)$ obtained when following policy $\pi$ and $(i i) X_{0}$ is selected at random such that $\mathbb{P}\left(X_{0}=x\right)>0$ holds for all states $x .$ This second condition makes the conditional expectation in (7) well-defined for every state. If the initial state distribution satisfies this condition, it has no influence on the definition of values.
+The value function underlying an MRP is defined the same way and is denoted by $V:$
+$$
+V(x)=\mathbb{E}\left[\sum_{t=0}^{\infty} \gamma^{t} R_{t+1} \mid X_{0}=x\right], \quad x \in \mathcal{X}
+$$
+It will also be useful to define the action-value function, $Q^{\pi}: \mathcal{X} \times \mathcal{A} \rightarrow \mathbb{R},$ underlying a
+policy $\pi \in \Pi_{\text {stat }}$ in an MDP: Assume that the first action $A_{0}$ is selected randomly such that
+$\mathbb{P}\left(A_{0}=a\right)>0$ holds for all $a \in \mathcal{A},$ while for the subsequent stages of the decision process
+the actions are chosen by following policy $\pi .$ Let $\left(\left(X_{t}, A_{t}, R_{t+1}\right) ; t \geq 0\right)$ be the resulting
+stochastic process, where $X_{0}$ is as in the definition of $V^{\pi} .$ Then
+$$
+Q^{\pi}(x, a)=\mathbb{E}\left[\sum_{t=0}^{\infty} \gamma^{t} R_{t+1} \mid X_{0}=x, A_{0}=a\right], \quad x \in \mathcal{X}, a \in \mathcal{A}
+$$
+Similarly to $V^{*}(x),$ the optimal action-value $Q^{*}(x, a)$ at the state-action pair $(x, a)$ is defined
+as the maximum of the expected return under the constraints that the process starts at state
+$x,$ and the first action chosen is $a .$ The underlying function $Q^{*}: \mathcal{X} \times \mathcal{A} \rightarrow \mathbb{R}$ is called the
+optimal action-value function.
+The optimal value- and action-value functions are connected by the following equations:
+$$
+\begin{aligned}
+V^{*}(x) &=\sup _{a \in \mathcal{A}} Q^{*}(x, a), \quad x \in \mathcal{X} \\
+Q^{*}(x, a) &=r(x, a)+\gamma \sum_{y \in \mathcal{X}} \mathcal{P}(x, a, y) V^{*}(y), \quad x \in \mathcal{X}, a \in \mathcal{A}
+\end{aligned}
+$$
+In the class of MDPs considered here, an optimal stationary policy always exists:
+$$
+V^{*}(x)=\sup _{\pi \in \Pi_{\text {stat }}} V^{\pi}(x), \quad x \in \mathcal{X}
+$$
+In fact, any policy $\pi \in \Pi_{\text {stat }}$ which satisfies the equality
+$$
+\sum_{a \in \mathcal{A}} \pi(a \mid x) Q^{*}(x, a)=V^{*}(x)
+$$
+simultaneously for all states $x \in \mathcal{X}$ is optimal. Notice that in order (8) to hold, $\pi(\cdot \mid x)$
+must be concentrated on the set of actions that maximize $Q^{*}(x, \cdot) .$ In general, given some
+action-value function, $Q: \mathcal{X} \times \mathcal{A} \rightarrow \mathbb{R},$ an action that maximizes $Q(x, \cdot)$ for some state $x$ is
+called greedy with respect to $Q$ in state $x .$ A policy that chooses greedy actions only with
+respect to $Q$ in all states is called greedy w.r.t. $Q$.
+
+Thus, a greedy policy with respect to $Q^{*}$ is optimal, i.e., the knowledge of $Q^{*}$ alone is
+sufficient for finding an optimal policy. Similarly, knowing $V^{*}, r$ and $\mathcal{P}$ also suffices to act
+ 
+
+optimally.
+The next question is how to find $V^{*}$ or $Q^{*}$. Let us start with the simpler question of how to find the value function of a policy:
+
+Fact 1 (Bellman Equations for Deterministic Policies): Fix an $M D P \mathcal{M}=\left(\mathcal{X}, \mathcal{A}, \mathcal{P}_{0}\right), a$ discount factor $\gamma$ and deterministic policy $\pi \in \Pi_{\text {stat. }}$ Let r \text { be the immediate reward function } ~
+of $\mathcal{M} .$ Then $V^{\pi}$ satisfies
+$$
+V^{\pi}(x)=r(x, \pi(x))+\gamma \sum_{y \in \mathcal{X}} \mathcal{P}(x, \pi(x), y) V^{\pi}(y), \quad x \in \mathcal{X}
+$$
+This system of equations is called the Bellman equation for $V^{\pi} .$ Define the Bellman operator underlying $\pi, T^{\pi}: \mathbb{R}^{\mathcal{X}} \rightarrow \mathbb{R}^{\mathcal{X}},$ by
+$$
+\left(T^{\pi} V\right)(x)=r(x, \pi(x))+\gamma \sum_{v \in \mathcal{X}} \mathcal{P}(x, \pi(x), y) V(y), \quad x \in \mathcal{X}
+$$
+With the help of $T^{\pi},$ Equation (9) can be written in the compact form
+$$
+T^{\pi} V^{\pi}=V^{\pi}
+$$
+Note that this is a linear system of equations in $V^{\pi}$ and $T^{\pi}$ is an affine linear operator. If
+$0<\gamma<1$ then $T^{\pi}$ is a maximum-norm contraction and the fixed-point equation $T^{\pi} V=V$
+has a unique solution.
+When the state space $\mathcal{X}$ is finite, say, it has $D$ states, $\mathbb{R}^{\mathcal{X}}$ can be identified with the $D$ dimensional Euclidean space and $V \in \mathbb{R}^{\mathcal{X}}$ can be thought of as a $D$ -dimensional vector: $V \in$
+$\mathbb{R}^{D} .$ With this identification, $T^{\pi} V$ can also be written as $r^{\pi}+\gamma P^{\pi} V$ with an appropriately defined vector $r^{\pi} \in \mathbb{R}^{D}$ and matrix $P^{\pi} \in \mathbb{R}^{D \times D} .$ In this case, (10) can be written in the
+form
+$$
+r^{\pi}+\gamma P^{\pi} V^{\pi}=V^{\pi}
+$$
+The above facts also hold true in MRPs, where the Bellman operator $T: \mathbb{R}^{\mathcal{X}} \rightarrow \mathbb{R}^{\mathcal{X}}$ is
+defined by
+$$
+(T V)(x)=r(x)+\gamma \sum_{y \in \mathcal{X}} \mathcal{P}(x, y) V(y), \quad x \in \mathcal{X}
+$$
+The above facts also hold true in MRPs, where the Bellman operator $T: \mathbb{R}^{\mathcal{X}} \rightarrow \mathbb{R}^{\mathcal{X}}$ is
+defined by
+$$
+(T V)(x)=r(x)+\gamma \sum_{y \in \mathcal{X}} \mathcal{P}(x, y) V(y), \quad x \in \mathcal{X}
+$$
+The optimal value function is known to satisfy a certain fixed-point equation:
+Fact 2 (Bellman Optimality Equations): The optimal value function satisfies the fixed-point
+equation
+$$
+V^{*}(x)=\sup _{a \in \mathcal{A}}\left\{r(x, a)+\gamma \sum_{y \in \mathcal{X}} \mathcal{P}(x, a, y) V^{*}(y)\right\}, \quad x \in \mathcal{X}
+$$
+$$
+\left(T^{*} V\right)(x)=\sup _{a \in \mathcal{A}}\left\{r(x, a)+\gamma \sum_{y \in \mathcal{X}} \mathcal{P}(x, a, y) V(y)\right\}, \quad x \in \mathcal{X}
+$$
+Note that this is a nonlinear operator due to the presence of sup. With the help of $T^{*}$,
+Equation (12) can be written compactly as
+$$
+T^{*} V^{*}=V^{*}
+$$
+If $0<\gamma<1,$ then $T^{*}$ is a maximum-norm contraction, and the fixed-point equation $T^{*} V=V$
+has a unique solution.
+In order to minimize clutter, in what follows we will write expressions like $\left(T^{\pi} V\right)(x)$ as $T^{\pi} V(x),$ with the understanding that the application of operator $T^{\pi}$ takes precedence to the applycation of the point evaluation operator, ". $(x) "$. The action-value functions underlying a policy (or an MRP) and the optimal action-value
+function also satisfy some fixed-point equations similar to the previous ones:
+
+Fact 3 (Bellman Operators and Fixed-point Equations for Action-value Functions): With a slight abuse of notation, define $T^{\pi}: \mathbb{R}^{\mathcal{X} \times \mathcal{A}} \rightarrow \mathbb{R}^{\mathcal{X} \times \mathcal{A}}$ and $T^{*}: \mathbb{R}^{\mathcal{X} \times \mathcal{A}} \rightarrow \mathbb{R}^{\mathcal{X} \times \mathcal{A}}$ as follows:
+$$
+\begin{aligned}
+T^{\pi} Q(x, a) &=r(x, a)+\gamma \sum_{y \in \mathcal{X}} \mathcal{P}(x, a, y) Q(y, \pi(y)), & &(x, a) \in \mathcal{X} \times \mathcal{A} \\
+T^{*} Q(x, a) &=& r(x, a)+\gamma \sum_{y \in \mathcal{X}} \mathcal{P}(x, a, y) \sup _{a^{\prime} \in \mathcal{A}} Q\left(y, a^{\prime}\right), &(x, a) \in \mathcal{X} \times \mathcal{A}
+\end{aligned}
+$$
+
+ \textbf{Markov decision process}
+ \subsection{Martingales}
+DEFINITION $3.4 .$ A $\mathbb{F}$ -adapted sequence of random variables $\left(X_{t}\right)_{t \in \mathbb{N}_{+}}$ is a $\mathbb{F}$ adapted martingale if
+(a) $\mathbb{E}\left[X_{t} \mid \mathcal{F}_{t-1}\right]=X_{t-1}$ almost surely for all $t \in\{2,3, \ldots\} ;$ and
+(b) $X_{t}$ is integrable.
+If the equality is replaced with a less-than (greater-than), then we call $\left(X_{t}\right)_{t}$ a supermartingale (respectively, a submartingale).
+\subsection{Tail probability}
+Suppose that $X, X_{1}, X_{2}, \ldots, X_{n}$ is a sequence of independent and identically distributed random variables, and assume that the mean $\mu=\mathbb{E}[X]$ and variance $\sigma^{2}=\mathbb{V}[X]$ exist. Having observed $X_{1}, X_{2}, \ldots, X_{n},$ we would like to estimate the common mean $\mu .$ The most natural estimator is
+$$
+\hat{\mu}=\frac{1}{n} \sum_{i=1}^{n} X_{i}
+$$
+which is called the sample mean or empirical mean. Linearity of expectation (Proposition 2.6$)$ shows that $\mathbb{E}[\hat{\mu}]=\mu,$ which means that $\hat{\mu}$ is an unbiased estimator of $\mu .$ How far from $\mu$ do we expect $\hat{\mu}$ to be? A simple measure of the spread of the distribution of a random variable $Z$ is its variance, $\mathbb{V}[Z]=\mathbb{E}\left[(Z-\mathbb{E}[Z])^{2}\right] .$ A quick calculation using independence shows that
+$$
+\mathbb{V}[\hat{\mu}]=\mathbb{E}\left[(\hat{\mu}-\mu)^{2}\right]=\frac{\sigma^{2}}{n}
+$$
+
+
+ \section{Linear regression}
+Given a data set $\left\{y_{i}, x_{i 1}, \ldots, x_{i p}\right\}_{i=1}^{n}$ of $n$ statistical units, a linear regression model assumes that the relationship between the dependent variable $y$ and the $p$ -vector of regressors $\mathbf{x}$ is linear. This relationship is modeled through a disturbance term or
+error variable $\varepsilon-$ an unobserved random variable that adds "noise" to the linear relationship between the dependent variable
+and regressors. Thus the model takes the form
+$$
+y_{i}=\beta_{0}+\beta_{1} x_{i 1}+\cdots+\beta_{p} x_{i p}+\varepsilon_{i}=\mathbf{x}_{i}^{\top} \boldsymbol{\beta}+\varepsilon_{i}, \quad i=1, \ldots, n
+$$
+where ${ }^{\top}$ denotes the transpose, so that $\mathbf{x}_{i}^{\top} \boldsymbol{\beta}$ is the inner product between vectors $\mathbf{x}_{i}$ and $\boldsymbol{\beta}$.
+Often these $n$ equations are stacked together and written in matrix notation as
+$$
+\mathbf{y}=X \boldsymbol{\beta}+\boldsymbol{\varepsilon}
+$$
+ \textbf{Useful inequalities}\\
+The Cauchy-Schwarz inequality states that for all vectors $u$ and $v$ of an inner product space it is true that
+$$
+|\langle\mathbf{u}, \mathbf{v}\rangle|^{2} \leq\langle\mathbf{u}, \mathbf{u}\rangle \cdot\langle\mathbf{v}, \mathbf{v}\rangle
+$$
+where $\langle\cdot, \cdot\rangle$ is the inner product. Examples of inner products include the real and complex dot product; see the examples in inner product. Equivalently, by taking the square root of both sides, and referring to the norms of the vectors, the inequality is written as $^{[2][3]}$
+$$
+|\langle\mathbf{u}, \mathbf{v}\rangle| \leq\|\mathbf{u}\|\|\mathbf{v}\|
+$$
+Moreover, the two sides are equal if and only if $\mathbf{u}$ and $\mathbf{v}$ are linearly dependent (meaning they are parallel: one of the vector's magnitudes is zero, or one is a scalar multiple of the other). $^{[4][5]}$
+
+If $u_{1}, \ldots, u_{n} \in \mathbb{C}$ and $v_{1}, \ldots, v_{n} \in \mathbb{C},$ and the inner product is the standard complex inner product, then the inequality may be restated more explicitly as follows (where the bar notation is used for complex conjugation): for $\mathbf{u}, \mathbf{v} \in \mathbb{C}^{n}$, we have
+$$
+|\langle\mathbf{u}, \mathbf{v}\rangle|^{2}=\left|\sum_{k=1}^{n} u_{k} \bar{v}_{k}\right|^{2} \leq\langle\mathbf{u}, \mathbf{u}\rangle\langle\mathbf{v}, \mathbf{v}\rangle=\left(\sum_{k=1}^{n} u_{k} \bar{u}_{k}\right)\left(\sum_{k=1}^{n} v_{k} \bar{v}_{k}\right)=\sum_{j=1}^{n}\left|u_{j}\right|^{2} \sum_{k=1}^{n}\left|v_{k}\right|^{2}
+$$
+That is,
+$$
+\left|u_{1} \bar{v}_{1}+\cdots+u_{n} \bar{v}_{n}\right|^{2} \leq\left(\left|u_{1}\right|^{2}+\cdots+\left|u_{n}\right|^{2}\right)\left(\left|v_{1}\right|^{2}+\cdots+\left|v_{n}\right|^{2}\right)
+$$
+
+The most straightforward way to bound the tails is by using Chebyshev's inequality, which is itself a corollary of Markov's inequality. The latter is one of the golden hammers of probability theory, and so we include it for the sake of completeness.
+LEMMA $5.1 .$ For any random variable $X$ and $\varepsilon>0,$ the following holds:
+(a) $(\operatorname{Markov}): \mathbb{P}(|X| \geq \varepsilon) \leq \frac{\mathbb{E}[|X|]}{\varepsilon}$
+(b) $($Chebyshev$): \mathbb{P}(|X-\mathbb{E}[X]| \geq \varepsilon) \leq \frac{\mathbb{V}[X]}{\varepsilon^{2}}$
+
+
+\section{Subgaussian}
+$$
+\begin{aligned}
+&\text { DEFINITION } 5.2 \text { (Subgaussianity). A random variable } X \text { is } \sigma \text { -subgaussian if for }\\
+&\text { all } \lambda \in \mathbb{R}, \text { it holds that } \mathbb{E}[\exp (\lambda X)] \leq \exp \left(\lambda^{2} \sigma^{2} / 2\right)
+\end{aligned}
+$$
+
+THEOREM $5.3 .$ If $X$ is $\sigma$ -subgaussian, then for any $\varepsilon \geq 0$
+$$
+\mathbb{P}(X \geq \varepsilon) \leq \exp \left(-\frac{\varepsilon^{2}}{2 \sigma^{2}}\right)
+$$
+Proof We take a generic approach called the Cramer-Chernoff method. Let $\lambda>0$ be some constant to be tuned later. Then
+$$
+\begin{aligned}
+\mathbb{P}(X \geq \varepsilon) &=\mathbb{P}(\exp (\lambda X) \geq \exp (\lambda \varepsilon)) & \\
+& \leq \mathbb{E}[\exp (\lambda X)] \exp (-\lambda \varepsilon) & \text { (Markov's inequality) }
+\end{aligned}
+$$
+$$
+\leq \exp \left(\frac{\lambda^{2} \sigma^{2}}{2}-\lambda \varepsilon\right) . \quad(\text { Def. of subgaussianity })
+$$
+Choosing $\lambda=\varepsilon / \sigma^{2}$ completes the proof.
+
+
+

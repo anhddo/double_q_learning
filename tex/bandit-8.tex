@@ -264,7 +264,7 @@ $$
 $$
     The first term inside the sum will never happen since we can not have $UCB _{i, t } < UCB _{1, t } $ and $A _{t }= i $ happen at the same time, 
     therefore we only have the second term left. \\
-    $\I \{E _{1}\}  \cup \{E _{2}\}  \leq \I \{E _{1}\} + E _{2}$. We have:
+    $\I \{ E _{1}  \cup \E _{2} \} \leq \I \{E _{1}\} + \I \{ E _{2}\}$. We have:
    $$
     \begin{aligned}
         T _{i  } &\leq \sum_{t=1}^{n}
@@ -304,7 +304,7 @@ $$
    $$
 \begin{aligned}
 &\mathbb{E}\left[\sum_{t=1}^{n} \mathbb{I}\left\{\hat{\mu}_{1}(t-1)+\sqrt{\frac{2 \log f(t)}{T_{1}(t-1)}} \leq \mu_{1}-\varepsilon\right\}\right] \\
-    &= \mathbb{E}\left[\sum_{t=1}^{n} \mathbb{P}\left(\hat{\mu}_{1}(t-1)+\sqrt{\frac{2 \log f(t)}{T_{1}(t-1)}} \leq \mu_{1}-\varepsilon\right)\right] \\
+    &= \sum_{t=1}^{n} \mathbb{P}\left(\hat{\mu}_{1}(t-1)+\sqrt{\frac{2 \log f(t)}{T_{1}(t-1)}} \leq \mu_{1}-\varepsilon\right) \\
 \end{aligned}
 $$
     $T _{1 }(t-1)  \in [n] $ is a r.v takes value in a discrete set [n], therefore,
@@ -337,17 +337,16 @@ $$
  $F=\sum_{s=1}^{n} \exp \left(-s \varepsilon^{2} / 2\right)$  
     is a geometric series. Then we have $\frac{e ^{-a }}{1 - e ^{-a }} < \frac{1}{a}$, so  $F \leq \frac{2}{\varepsilon ^{2} }$ . \\
     Choose  $f(t)=1 + t log^2 t$ 
+    . If  $\frac{1}{f(t)} $ is strictly decreasing then $\sum_{k=N+1}^{\infty} \frac{1}{f(t)} \leq \int_{N}^{\infty} \frac{1}{f(t)} \mathrm{dx} \leq \sum_{k=N}^{\infty} \frac{1}{f(t)}
+    $ 
    $$
 \begin{aligned}
-    \sum_{t=1}^{n}\frac{1}{f(t)} &\leq \sum_{t=1}^{2}\frac{1}{f(t)} + \sum_{t=3}^{n}\frac{1}{t log^2 t} \\
-    &\leq \sum_{t=1}^{2}\frac{1}{f(t)} + \int_{2}^{n}\frac{1}{t log^2 t} dt \\
+    \sum_{t=1}^{n}\frac{1}{f(t)} &\leq \sum_{t=1}^{2}\frac{1}{f(t)} + \sum_{t=3}^{n}\frac{1}{t log^2 t} \leq \sum_{t=1}^{2}\frac{1}{f(t)} + \int_{2}^{n}\frac{1}{t log^2 t} dt \\
     &\leq 1 + \frac{1}{1 + 2 log ^{2} 2} + \frac{1}{log(2)} \approx 2.95 
-    \quad \square
 \end{aligned}
 $$
 Therefore, 
  $\sum_{t=1}^{n} \frac{1}{f(t)} \sum_{s=1}^{n} \exp \left(-\frac{s \varepsilon^{2}}{2}\right) \leq \frac{6}{\varepsilon^{2}}$
-
 \end{frame}
 
 {
