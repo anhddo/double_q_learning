@@ -63,16 +63,19 @@ bottom=30mm
 \begin{document}
 
 \maketitle
+\justify
+%\printbibliography
+\frontmatter
+\input{chapters/ack}
+\input{chapters/abstract}
 \tableofcontents
 \listoffigures
 \listoftables
-\justify
-%\printbibliography
-\chapter{Acknowledgement}
-\input{chapters/ack}
+\mainmatter
 \chapter{Introduction}
-\input{chapters/background}
-\input{chapters/intro}
+\input{chapters/intro_basic_prob}
+\input{chapters/intro_mdp_rl}
+\input{chapters/intro_problem_def}
 \chapter{Related work}
 \input{chapters/relate}
 \chapter{Our work}

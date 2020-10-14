@@ -1,0 +1,121 @@
+In this chapter, we will introduce some background knowledge and terminologies 
+that are needed for our analysis. The first part will briefly give an 
+introduction on some terminologies related to measure theory and some formular 
+for quickly updating the covariance matrix. The second part will be about the 
+overview of Markov Decision Processes and Reinforcement Learning. 
+\section{Background}
+\subsection{$\sigma$ -algebra and probability measures}
+A set $\mathcal{F} \subseteq 2^{\Omega}$ is a $\sigma$ algebra if $\Omega \in \mathcal{F}$ and $A^{c} \in \mathcal{F}$ for all $A \in \mathcal{F}$ and $\cup_{i} A_{i} \in \mathcal{F}$ for all $\left\{A_{i}\right\}_{i}$ with $A_{i} \in \mathcal{F}$ for all $i \in \mathbb{N}$. That is, it should include the whole outcome space and be closed under complementation and countable unions. A function $\mathbb{P}: \mathcal{F} \rightarrow \mathbb{R}$ is a probability measure if $\mathbb{P}(\Omega)=1$ and for all $A \in \mathcal{F}, \mathbb{P}(A) \geq 0$ and $\mathbb{P}\left(A^{c}\right)=1-\mathbb{P}(A)$ and $\mathbb{P}\left(\cup_{i} A_{i}\right)=\sum_{i} \mathbb{P}\left(A_{i}\right)$ for all countable collections of disjoint
+sets $\left\{A_{i}\right\}_{i}$ with $A_{i} \in \mathcal{F}$ for all $i .$ If $\mathcal{F}$ is a $\sigma$ -algebra and $\mathcal{G} \subset \mathcal{F}$ is also a $\sigma$ -algebra, then we say $\mathcal{G}$ is a sub- $\boldsymbol{\sigma}$ -algebra of $\mathcal{F}$. If $\mathbb{P}$ is a measure defined on $\mathcal{F}$, then the restriction of $\mathbb{P}$ to $\mathcal{G}$ is a measure $\mathbb{P}_{\mid \mathcal{G}}$ on $\mathcal{G}$ defined by $\mathbb{P}_{\mid \mathcal{G}}(A)=\mathbb{P}(A)$ for all $A \in \mathcal{G}$
+
+
+to be the smallest $\sigma$ -algebra containing the union of all $\mathcal{F}_{t} .$ Filtrations can also be defined in continuous time, but we have no need for that here. A sequence of random variables $\left(X_{t}\right)_{t=1}^{n}$ is adapted to filtration $\mathbb{F}=\left(\mathcal{F}_{t}\right)_{t=0}^{n}$ if $X_{t}$ is $\mathcal{F}_{t^{-}}$ measurable for each $t .$ We also say in this case that $\left(X_{t}\right)_{t}$ is $\mathbb{F}$ -adapted. The same nomenclature applies if $n$ is infinite. Finally, $\left(X_{t}\right)_{t}$ is $\mathbb{F}$ -predictable if $X_{t}$ is $\mathcal{F}_{t-1}$ -measurable for each $t \in[n] .$ Intuitively we may think of an $\mathbb{F}$ -predictable process $X=\left(X_{t}\right)_{t}$ as one that has the property that $X_{t}$ can be known $($ or 'predicted') based on $\mathcal{F}_{t-1}$, while a $\mathbb{F}$ -adapted process is one that has the property that $X_{t}$ can be known based on $\mathcal{F}_{t}$ only. since $\mathcal{F}_{t-1} \subseteq \mathcal{F}_{t},$ a predictable process
+is also adapted. A filtered probability space is the tuple $(\Omega, \mathcal{F}, \mathbb{F}, \mathbb{P}),$ where $(\Omega, \mathcal{F}, \mathbb{P})$ is a probability space and $\mathbb{F}=\left(\mathcal{F}_{t}\right)_{t}$ is filtration of $\mathcal{F}$
+\section{Filtrations}
+In the study of bandits and other online settings, information is revealed to the learner sequentially. Let $X_{1}, \ldots, X_{n}$ be a collection of random variables on a common measurable space $(\Omega, \mathcal{F}) .$ We imagine a learner is sequentially observing the values of these random variables. First $X_{1},$ then $X_{2}$ and so on. The learner needs to make a prediction, or act, based on the available observations. Say, a prediction or an act must produce a real-valued response. Then, having observed $X_{1: t} \doteq\left(X_{1}, \ldots, X_{t}\right),$ the set of maps $f \circ X_{1: t}$ where $f: \mathbb{R}^{t} \rightarrow \mathbb{R}$ is Borel, captures
+all the possible ways the learner can respond. By Lemma $2.5,$ this set contains exactly the $\sigma\left(X_{1: t}\right) / \mathfrak{B}(\mathbb{R})$ -measurable maps. Thus, if we need to reason about the set of $\Omega \rightarrow \mathbb{R}$ maps available after observing $X_{1: t},$ it suffices to concentrate on the $\sigma$ -algebra $\mathcal{F}_{t}=\sigma\left(X_{1: t}\right) .$ Conveniently, $\mathcal{F}_{t}$ is independent of the space of possible responses, and being a subset of $\mathcal{F},$ it also hides details about the range space of $X_{1: t} .$ It is easy to check that $\mathcal{F}_{0} \subseteq \mathcal{F}_{1} \subseteq \mathcal{F}_{2} \subseteq \cdots \subseteq \mathcal{F}_{n} \subseteq \mathcal{F},$ which
+means that more and more functions are becoming $\mathcal{F}_{t}$ -measurable as $t$ increases, which corresponds to increasing knowledge (note that $\mathcal{F}_{0}=\{\emptyset, \Omega\},$ and the set of $\mathcal{F}_{0}$ -measurable functions is the set of constant functions on $\Omega$ ).
+
+Bringing these a little further, we will often find it useful to talk about increasing sequences of $\sigma$ -algebras without constructing them in terms of random variables as above. Given a measurable space $(\Omega, \mathcal{F}),$ a filtration is a sequence $\left(\mathcal{F}_{t}\right)_{t=0}^{n}$ of sub- $\sigma$ -algebras of $\mathcal{F}$ where $\mathcal{F}_{t} \subseteq \mathcal{F}_{t+1}$ for all $t<n .$ We also allow $n=\infty,$ and in this case we define
+$$
+\mathcal{F}_{\infty}=\sigma\left(\bigcup_{t=0}^{\infty} \mathcal{F}_{t}\right)
+$$
+
+\section{Covariance matrix}
+Throughout this article, boldfaced unsubscripted $\mathbf{X}$ and $\mathbf{Y}$ are used to refer to random vectors, and unboldfaced subscripted $X_{i}$ and $Y_{i}$ are used to refer to scalar random variables.
+If the entries in the column vector
+$$
+\mathbf{X}=\left(X_{1}, X_{2}, \ldots, X_{n}\right)^{\mathrm{T}}
+$$
+are random variables, each with finite variance and expected value, then the covariance matrix $\mathrm{K}_{\mathrm{XX}}$ is the matrix whose $(i, j)$ entry is the covariance $^{[1]: p .177}$
+$$
+\mathbf{K}_{X_{i} X_{j}}=\operatorname{cov}\left[X_{i}, X_{j}\right]=\mathrm{E}\left[\left(X_{i}-\mathrm{E}\left[X_{i}\right]\right)\left(X_{j}-\mathrm{E}\left[X_{j}\right]\right)\right]
+$$
+where the operator $\mathrm{E}$ denotes the expected value (mean) of its argument.
+In other words,
+\section{Sherman-Morrison formula}
+Suppose $A \in \mathbb{R}^{n \times n}$ is an invertible square matrix and $u, v \in \mathbb{R}^{n}$ are column vectors. Then $A+u v^{\top}$ is invertible iff $1+v^{\top} A^{-1} u \neq 0 .$ In this case,
+$$
+\left(A+u v^{\top}\right)^{-1}=A^{-1}-\frac{A^{-1} u v^{\top} A^{-1}}{1+v^{\top} A^{-1} u}
+$$
+Here, $u v^{\top}$ is the outer product of two vectors $u$ and $v$. The general form shown here is the one published by Bartlett. $^{[5]}$
+ \subsection{Martingales}
+DEFINITION $3.4 .$ A $\mathbb{F}$ -adapted sequence of random variables $\left(X_{t}\right)_{t \in \mathbb{N}_{+}}$ is a $\mathbb{F}$ adapted martingale if
+(a) $\mathbb{E}\left[X_{t} \mid \mathcal{F}_{t-1}\right]=X_{t-1}$ almost surely for all $t \in\{2,3, \ldots\} ;$ and
+(b) $X_{t}$ is integrable.
+If the equality is replaced with a less-than (greater-than), then we call $\left(X_{t}\right)_{t}$ a supermartingale (respectively, a submartingale).
+\subsection{Tail probability}
+Suppose that $X, X_{1}, X_{2}, \ldots, X_{n}$ is a sequence of independent and identically distributed random variables, and assume that the mean $\mu=\mathbb{E}[X]$ and variance $\sigma^{2}=\mathbb{V}[X]$ exist. Having observed $X_{1}, X_{2}, \ldots, X_{n},$ we would like to estimate the common mean $\mu .$ The most natural estimator is
+$$
+\hat{\mu}=\frac{1}{n} \sum_{i=1}^{n} X_{i}
+$$
+which is called the sample mean or empirical mean. Linearity of expectation (Proposition 2.6$)$ shows that $\mathbb{E}[\hat{\mu}]=\mu,$ which means that $\hat{\mu}$ is an unbiased estimator of $\mu .$ How far from $\mu$ do we expect $\hat{\mu}$ to be? A simple measure of the spread of the distribution of a random variable $Z$ is its variance, $\mathbb{V}[Z]=\mathbb{E}\left[(Z-\mathbb{E}[Z])^{2}\right] .$ A quick calculation using independence shows that
+$$
+\mathbb{V}[\hat{\mu}]=\mathbb{E}\left[(\hat{\mu}-\mu)^{2}\right]=\frac{\sigma^{2}}{n}
+$$
+
+\subsection{Subgaussian}
+$$
+\begin{aligned}
+&\text { DEFINITION } 5.2 \text { (Subgaussianity). A random variable } X \text { is } \sigma \text { -subgaussian if for }\\
+&\text { all } \lambda \in \mathbb{R}, \text { it holds that } \mathbb{E}[\exp (\lambda X)] \leq \exp \left(\lambda^{2} \sigma^{2} / 2\right)
+\end{aligned}
+$$
+
+THEOREM $5.3 .$ If $X$ is $\sigma$ -subgaussian, then for any $\varepsilon \geq 0$
+$$
+\mathbb{P}(X \geq \varepsilon) \leq \exp \left(-\frac{\varepsilon^{2}}{2 \sigma^{2}}\right)
+$$
+Proof We take a generic approach called the Cramer-Chernoff method. Let $\lambda>0$ be some constant to be tuned later. Then
+$$
+\begin{aligned}
+\mathbb{P}(X \geq \varepsilon) &=\mathbb{P}(\exp (\lambda X) \geq \exp (\lambda \varepsilon)) & \\
+& \leq \mathbb{E}[\exp (\lambda X)] \exp (-\lambda \varepsilon) & \text { (Markov's inequality) }
+\end{aligned}
+$$
+$$
+\leq \exp \left(\frac{\lambda^{2} \sigma^{2}}{2}-\lambda \varepsilon\right) . \quad(\text { Def. of subgaussianity })
+$$
+Choosing $\lambda=\varepsilon / \sigma^{2}$ completes the proof.
+
+ \section{Linear regression}
+Given a data set $\left\{y_{i}, x_{i 1}, \ldots, x_{i p}\right\}_{i=1}^{n}$ of $n$ statistical units, a linear regression model assumes that the relationship between the dependent variable $y$ and the $p$ -vector of regressors $\mathbf{x}$ is linear. This relationship is modeled through a disturbance term or
+error variable $\varepsilon-$ an unobserved random variable that adds "noise" to the linear relationship between the dependent variable
+and regressors. Thus the model takes the form
+$$
+y_{i}=\beta_{0}+\beta_{1} x_{i 1}+\cdots+\beta_{p} x_{i p}+\varepsilon_{i}=\mathbf{x}_{i}^{\top} \boldsymbol{\beta}+\varepsilon_{i}, \quad i=1, \ldots, n
+$$
+where ${ }^{\top}$ denotes the transpose, so that $\mathbf{x}_{i}^{\top} \boldsymbol{\beta}$ is the inner product between vectors $\mathbf{x}_{i}$ and $\boldsymbol{\beta}$.
+Often these $n$ equations are stacked together and written in matrix notation as
+$$
+\mathbf{y}=X \boldsymbol{\beta}+\boldsymbol{\varepsilon}
+$$
+ \textbf{Useful inequalities}\\
+The Cauchy-Schwarz inequality states that for all vectors $u$ and $v$ of an inner product space it is true that
+$$
+|\langle\mathbf{u}, \mathbf{v}\rangle|^{2} \leq\langle\mathbf{u}, \mathbf{u}\rangle \cdot\langle\mathbf{v}, \mathbf{v}\rangle
+$$
+where $\langle\cdot, \cdot\rangle$ is the inner product. Examples of inner products include the real and complex dot product; see the examples in inner product. Equivalently, by taking the square root of both sides, and referring to the norms of the vectors, the inequality is written as $^{[2][3]}$
+$$
+|\langle\mathbf{u}, \mathbf{v}\rangle| \leq\|\mathbf{u}\|\|\mathbf{v}\|
+$$
+Moreover, the two sides are equal if and only if $\mathbf{u}$ and $\mathbf{v}$ are linearly dependent (meaning they are parallel: one of the vector's magnitudes is zero, or one is a scalar multiple of the other). $^{[4][5]}$
+
+If $u_{1}, \ldots, u_{n} \in \mathbb{C}$ and $v_{1}, \ldots, v_{n} \in \mathbb{C},$ and the inner product is the standard complex inner product, then the inequality may be restated more explicitly as follows (where the bar notation is used for complex conjugation): for $\mathbf{u}, \mathbf{v} \in \mathbb{C}^{n}$, we have
+$$
+|\langle\mathbf{u}, \mathbf{v}\rangle|^{2}=\left|\sum_{k=1}^{n} u_{k} \bar{v}_{k}\right|^{2} \leq\langle\mathbf{u}, \mathbf{u}\rangle\langle\mathbf{v}, \mathbf{v}\rangle=\left(\sum_{k=1}^{n} u_{k} \bar{u}_{k}\right)\left(\sum_{k=1}^{n} v_{k} \bar{v}_{k}\right)=\sum_{j=1}^{n}\left|u_{j}\right|^{2} \sum_{k=1}^{n}\left|v_{k}\right|^{2}
+$$
+That is,
+$$
+\left|u_{1} \bar{v}_{1}+\cdots+u_{n} \bar{v}_{n}\right|^{2} \leq\left(\left|u_{1}\right|^{2}+\cdots+\left|u_{n}\right|^{2}\right)\left(\left|v_{1}\right|^{2}+\cdots+\left|v_{n}\right|^{2}\right)
+$$
+
+The most straightforward way to bound the tails is by using Chebyshev's inequality, which is itself a corollary of Markov's inequality. The latter is one of the golden hammers of probability theory, and so we include it for the sake of completeness.
+LEMMA $5.1 .$ For any random variable $X$ and $\varepsilon>0,$ the following holds:
+(a) $(\operatorname{Markov}): \mathbb{P}(|X| \geq \varepsilon) \leq \frac{\mathbb{E}[|X|]}{\varepsilon}$
+(b) $($Chebyshev$): \mathbb{P}(|X-\mathbb{E}[X]| \geq \varepsilon) \leq \frac{\mathbb{V}[X]}{\varepsilon^{2}}$
+
+
+
+
+

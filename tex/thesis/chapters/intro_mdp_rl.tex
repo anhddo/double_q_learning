@@ -1,4 +1,45 @@
- \subsection{Value iteration}
+\subsection{Markov decision process}
+For ease of exposition, we restrict our attention to countable MDPs and the discounted total
+expected reward criterion. However, under some technical conditions, the results extend to
+continuous state-action MDPs, too. This also holds true for the results presented in later
+parts of this book. A countable MDP is defined as a triplet $\mathcal{M}=\left(\mathcal{X}, \mathcal{A}, \mathcal{P}_{0}\right),$ where $\mathcal{X}$ is the countable non-
+empty set of states, $\mathcal{A}$ is the countable non-empty set of actions. The transition probability kernel $\mathcal{P}_{0}$ assigns to each state-action pair $(x, a) \in \mathcal{X} \times \mathcal{A}$ a probability measure over $\mathcal{X} \times \mathbb{R},$ which we shall denote by $\mathcal{P}_{0}(\cdot \mid x, a) .$ The semantics of $\mathcal{P}_{0}$ is the following: For $U \subset \mathcal{X} \times \mathbb{R}$ $\mathcal{P}_{0}(U \mid x, a)$ gives the probability that the next state and the associated reward belongs to the set $U$ provided that the current state is $x$ and the action taken is $a$. factor $0 \leq \gamma \leq 1$ whose role will become clear soon.
+
+The transition probability kernel gives rise to the state transition probability kernel, $\mathcal{P},$ which, for any $(x, a, y) \in \mathcal{X} \times \mathcal{A} \times \mathcal{X}$ triplet gives the probability of moving from state $x$ to some other state $y$ provided that action $a$ was chosen in state $x$ :
+$$
+\mathcal{P}(x, a, y)=\mathcal{P}_{0}(\{y\} \times \mathbb{R} \mid x, a)
+$$
+In addition to $\mathcal{P}, \mathcal{P}_{0}$ also gives rise to the immediate reward function $r: \mathcal{X} \times \mathcal{A} \rightarrow \mathbb{R}$
+which gives the expected immediate reward received when action $a$ is chosen in state $x$ : If $\left(Y_{(x, a)}, R_{(x, a)}\right) \sim \mathcal{P}_{0}(\cdot \mid x, a),$ then
+$$
+r(x, a)=\mathbb{E}\left[R_{(x, a)}\right]
+$$
+In what follows, we shall assume that the rewards are bounded by some quantity $\mathcal{R}>0$ for any $(x, a) \in \mathcal{X} \times \mathcal{A},\left|R_{(x, a)}\right| \leq \mathcal{R}$ almost surely $\left._{ }^{\beta}\right] \quad$ It is immediate that if the random rewards are bounded by $\mathcal{R}$ then $\|r\|_{\infty}=\sup _{(x, a) \in \mathcal{X} \times \mathcal{A}}|r(x, a)| \leq \mathcal{R}$ also holds. An MDP is
+called finite if both $\mathcal{X}$ and $\mathcal{A}$ are finite.
+Markov Decision Processes are a tool for modeling sequential decision-making problems where a decision maker interacts with a system in a sequential fashion. Given an MDP $\mathcal{M}$
+this interaction happens as follows: Let $t \in \mathbb{N}$ denote the current time (or stage), let $X_{t} \in \mathcal{X}$
+and $A_{t} \in \mathcal{A}$ denote the random state of the system and the action chosen by the decision
+maker at time $t,$ respectively. Once the action is selected, it is sent to the system, which
+makes a transition:
+$$
+\left(X_{t+1}, R_{t+1}\right) \sim \mathcal{P}_{0}\left(\cdot \mid X_{t}, A_{t}\right)
+$$
+In particular, $X_{t+1}$ is random and $\mathbb{P}\left(X_{t+1}=y \mid X_{t}=x, A_{t}=a\right)=\mathcal{P}(x, a, y)$ holds for any $x, y \in \mathcal{X}, a \in \mathcal{A} .$ Further, $\mathbb{E}\left[R_{t+1} \mid X_{t}, A_{t}\right]=r\left(X_{t}, A_{t}\right) .$ The decision maker then observes
+the next state $X_{t+1}$ and reward $R_{t+1},$ chooses a new action $A_{t+1} \in \mathcal{A}$ and the process is
+repeated. The goal of the decision maker is to come up with a way of choosing the actions
+so as to maximize the expected total discounted reward.
+
+The decision maker can select its actions at any stage based on the observed history. A rule describing the way the actions are selected is called a behavior. A behavior of the decision
+maker and some initial random state $X_{0}$ together define a random state-action-reward sequence $\left(\left(X_{t}, A_{t}, R_{t+1}\right) ; t \geq 0\right),$ where $\left(X_{t+1}, R_{t+1}\right)$ is connected to $\left(X_{t}, A_{t}\right)$ by $(\mathbb{1})$ and $A_{t}$ is the action prescribed by the behavior based on the history $\left.X_{0}, A_{0}, R_{1}, \ldots, X_{t-1}, A_{t-1}, R_{t}, X_{t}\right]$ The return underlying a behavior is defined as the total discounted sum of the rewards
+incurred:
+$$
+\mathcal{R}=\sum_{t=0}^{\infty} \gamma^{t} R_{t+1}
+$$
+
+
+
+
+\subsection{Value iteration}
 The obvious way of finding an optimal behavior in some MDP is to list all behaviors and
 then identify the ones that give the highest possible value for each initial state. Since, in
 general, there are too many behaviors, this plan is not viable. A better approach is based on
@@ -139,84 +180,26 @@ T^{*} Q(x, a) &=& r(x, a)+\gamma \sum_{y \in \mathcal{X}} \mathcal{P}(x, a, y) \
 \end{aligned}
 $$
 
- \textbf{Markov decision process}
- \subsection{Martingales}
-DEFINITION $3.4 .$ A $\mathbb{F}$ -adapted sequence of random variables $\left(X_{t}\right)_{t \in \mathbb{N}_{+}}$ is a $\mathbb{F}$ adapted martingale if
-(a) $\mathbb{E}\left[X_{t} \mid \mathcal{F}_{t-1}\right]=X_{t-1}$ almost surely for all $t \in\{2,3, \ldots\} ;$ and
-(b) $X_{t}$ is integrable.
-If the equality is replaced with a less-than (greater-than), then we call $\left(X_{t}\right)_{t}$ a supermartingale (respectively, a submartingale).
-\subsection{Tail probability}
-Suppose that $X, X_{1}, X_{2}, \ldots, X_{n}$ is a sequence of independent and identically distributed random variables, and assume that the mean $\mu=\mathbb{E}[X]$ and variance $\sigma^{2}=\mathbb{V}[X]$ exist. Having observed $X_{1}, X_{2}, \ldots, X_{n},$ we would like to estimate the common mean $\mu .$ The most natural estimator is
-$$
-\hat{\mu}=\frac{1}{n} \sum_{i=1}^{n} X_{i}
-$$
-which is called the sample mean or empirical mean. Linearity of expectation (Proposition 2.6$)$ shows that $\mathbb{E}[\hat{\mu}]=\mu,$ which means that $\hat{\mu}$ is an unbiased estimator of $\mu .$ How far from $\mu$ do we expect $\hat{\mu}$ to be? A simple measure of the spread of the distribution of a random variable $Z$ is its variance, $\mathbb{V}[Z]=\mathbb{E}\left[(Z-\mathbb{E}[Z])^{2}\right] .$ A quick calculation using independence shows that
-$$
-\mathbb{V}[\hat{\mu}]=\mathbb{E}\left[(\hat{\mu}-\mu)^{2}\right]=\frac{\sigma^{2}}{n}
-$$
+\section{Reinforcment learning}
+Due to its generality, reinforcement learning is studied in many disciplines, such as game theory, control theory, operations research, information theory, simulation-based optimization, multi-agent systems, swarm intelligence, and statistics. In the operations research and control literature, reinforcement learning is called approximate dynamic programming, or neuro-dynamic programming. The problems of interest in reinforcement learning have also been studied in the theory of optimal control, which is concerned mostly with the existence and characterization of optimal solutions, and algorithms for their exact computation, and less with learning or approximation, particularly in the absence of a mathematical model of the environment. In economics and game theory, reinforcement learning may be used to explain how equilibrium may arise under bounded rationality.
 
+Basic reinforcement is modeled as a Markov decision process (MDP):
 
- \section{Linear regression}
-Given a data set $\left\{y_{i}, x_{i 1}, \ldots, x_{i p}\right\}_{i=1}^{n}$ of $n$ statistical units, a linear regression model assumes that the relationship between the dependent variable $y$ and the $p$ -vector of regressors $\mathbf{x}$ is linear. This relationship is modeled through a disturbance term or
-error variable $\varepsilon-$ an unobserved random variable that adds "noise" to the linear relationship between the dependent variable
-and regressors. Thus the model takes the form
-$$
-y_{i}=\beta_{0}+\beta_{1} x_{i 1}+\cdots+\beta_{p} x_{i p}+\varepsilon_{i}=\mathbf{x}_{i}^{\top} \boldsymbol{\beta}+\varepsilon_{i}, \quad i=1, \ldots, n
-$$
-where ${ }^{\top}$ denotes the transpose, so that $\mathbf{x}_{i}^{\top} \boldsymbol{\beta}$ is the inner product between vectors $\mathbf{x}_{i}$ and $\boldsymbol{\beta}$.
-Often these $n$ equations are stacked together and written in matrix notation as
-$$
-\mathbf{y}=X \boldsymbol{\beta}+\boldsymbol{\varepsilon}
-$$
- \textbf{Useful inequalities}\\
-The Cauchy-Schwarz inequality states that for all vectors $u$ and $v$ of an inner product space it is true that
-$$
-|\langle\mathbf{u}, \mathbf{v}\rangle|^{2} \leq\langle\mathbf{u}, \mathbf{u}\rangle \cdot\langle\mathbf{v}, \mathbf{v}\rangle
-$$
-where $\langle\cdot, \cdot\rangle$ is the inner product. Examples of inner products include the real and complex dot product; see the examples in inner product. Equivalently, by taking the square root of both sides, and referring to the norms of the vectors, the inequality is written as $^{[2][3]}$
-$$
-|\langle\mathbf{u}, \mathbf{v}\rangle| \leq\|\mathbf{u}\|\|\mathbf{v}\|
-$$
-Moreover, the two sides are equal if and only if $\mathbf{u}$ and $\mathbf{v}$ are linearly dependent (meaning they are parallel: one of the vector's magnitudes is zero, or one is a scalar multiple of the other). $^{[4][5]}$
+a set of environment and agent states, S;
+a set of actions, A, of the agent;
+ $P_{a}(s,s')=\Pr(s_{t+1}=s'\mid s_{t}=s,a_{t}=a)$ $ P_{a}(s,s')=\Pr(s_{t+1}=s'\mid s_{t}=s,a_{t}=a)$ is the probability of transition t from state s to state  $s ^{'}$ under action a
+$R_{a}(s,s')$  is the immediate reward after transition from s to  $s ^{'}$ with action a.
+A reinforcement learning agent interacts with its environment in discrete time steps. At each time t, the agent receives the current state $ s_{t}$ and reward  $r_{t}$. It then chooses an action $a_{t}$ from the set of available actions, which is subsequently sent to the environment. The environment moves to a new state $s_{t+1}$ and the reward $r_{t+1}$ associated with the transition $(s_{t},a_{t},s_{t+1})$ is determined. The goal of a reinforcement learning agent is to learn a policy: $\pi :A\times S\rightarrow [0,1]$, $\pi (a,s)=\Pr(a_{t}=a\mid s_{t}=s)$ which maximizes the expected cumulative reward.
 
-If $u_{1}, \ldots, u_{n} \in \mathbb{C}$ and $v_{1}, \ldots, v_{n} \in \mathbb{C},$ and the inner product is the standard complex inner product, then the inequality may be restated more explicitly as follows (where the bar notation is used for complex conjugation): for $\mathbf{u}, \mathbf{v} \in \mathbb{C}^{n}$, we have
-$$
-|\langle\mathbf{u}, \mathbf{v}\rangle|^{2}=\left|\sum_{k=1}^{n} u_{k} \bar{v}_{k}\right|^{2} \leq\langle\mathbf{u}, \mathbf{u}\rangle\langle\mathbf{v}, \mathbf{v}\rangle=\left(\sum_{k=1}^{n} u_{k} \bar{u}_{k}\right)\left(\sum_{k=1}^{n} v_{k} \bar{v}_{k}\right)=\sum_{j=1}^{n}\left|u_{j}\right|^{2} \sum_{k=1}^{n}\left|v_{k}\right|^{2}
-$$
-That is,
-$$
-\left|u_{1} \bar{v}_{1}+\cdots+u_{n} \bar{v}_{n}\right|^{2} \leq\left(\left|u_{1}\right|^{2}+\cdots+\left|u_{n}\right|^{2}\right)\left(\left|v_{1}\right|^{2}+\cdots+\left|v_{n}\right|^{2}\right)
-$$
+Formulating the problem as a MDP assumes the agent directly observes the current environmental state; in this case the problem is said to have full observability. If the agent only has access to a subset of states, or if the observed states are corrupted by noise, the agent is said to have partial observability, and formally the problem must be formulated as a Partially observable Markov decision process. In both cases, the set of actions available to the agent can be restricted. For example, the state of an account balance could be restricted to be positive; if the current value of the state is 3 and the state transition attempts to reduce the value by 4, the transition will not be allowed.
 
-The most straightforward way to bound the tails is by using Chebyshev's inequality, which is itself a corollary of Markov's inequality. The latter is one of the golden hammers of probability theory, and so we include it for the sake of completeness.
-LEMMA $5.1 .$ For any random variable $X$ and $\varepsilon>0,$ the following holds:
-(a) $(\operatorname{Markov}): \mathbb{P}(|X| \geq \varepsilon) \leq \frac{\mathbb{E}[|X|]}{\varepsilon}$
-(b) $($Chebyshev$): \mathbb{P}(|X-\mathbb{E}[X]| \geq \varepsilon) \leq \frac{\mathbb{V}[X]}{\varepsilon^{2}}$
+When the agent's performance is compared to that of an agent that acts optimally, the difference in performance gives rise to the notion of regret. In order to act near optimally, the agent must reason about the long-term consequences of its actions (i.e., maximize future income), although the immediate reward associated with this might be negative.
 
+Thus, reinforcement learning is particularly well-suited to problems that include a long-term versus short-term reward trade-off. It has been applied successfully to various problems, including robot control, elevator scheduling, telecommunications, backgammon, checkers[3] and Go (AlphaGo).
 
-\section{Subgaussian}
-$$
-\begin{aligned}
-&\text { DEFINITION } 5.2 \text { (Subgaussianity). A random variable } X \text { is } \sigma \text { -subgaussian if for }\\
-&\text { all } \lambda \in \mathbb{R}, \text { it holds that } \mathbb{E}[\exp (\lambda X)] \leq \exp \left(\lambda^{2} \sigma^{2} / 2\right)
-\end{aligned}
-$$
+Two elements make reinforcement learning powerful: the use of samples to optimize performance and the use of function approximation to deal with large environments. Thanks to these two key components, reinforcement learning can be used in large environments in the following situations:
 
-THEOREM $5.3 .$ If $X$ is $\sigma$ -subgaussian, then for any $\varepsilon \geq 0$
-$$
-\mathbb{P}(X \geq \varepsilon) \leq \exp \left(-\frac{\varepsilon^{2}}{2 \sigma^{2}}\right)
-$$
-Proof We take a generic approach called the Cramer-Chernoff method. Let $\lambda>0$ be some constant to be tuned later. Then
-$$
-\begin{aligned}
-\mathbb{P}(X \geq \varepsilon) &=\mathbb{P}(\exp (\lambda X) \geq \exp (\lambda \varepsilon)) & \\
-& \leq \mathbb{E}[\exp (\lambda X)] \exp (-\lambda \varepsilon) & \text { (Markov's inequality) }
-\end{aligned}
-$$
-$$
-\leq \exp \left(\frac{\lambda^{2} \sigma^{2}}{2}-\lambda \varepsilon\right) . \quad(\text { Def. of subgaussianity })
-$$
-Choosing $\lambda=\varepsilon / \sigma^{2}$ completes the proof.
-
-
-
+A model of the environment is known, but an analytic solution is not available;
+Only a simulation model of the environment is given (the subject of simulation-based optimization);[4]
+The only way to collect information about the environment is to interact with it.
+The first two of these problems could be considered planning problems (since some form of model is available), while the last one could be considered to be a genuine learning problem. However, reinforcement learning converts both planning problems to machine learning problems.
